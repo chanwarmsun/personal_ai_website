@@ -76,6 +76,28 @@ module.exports = {
              opacity: '1'
            },
          },
+         instantBounce: {
+           '0%': { 
+             transform: 'scale(0.1) rotate(-8deg)',
+             opacity: '0'
+           },
+           '20%': { 
+             transform: 'scale(1.2) rotate(2deg)',
+             opacity: '0.8'
+           },
+           '50%': { 
+             transform: 'scale(0.9) rotate(-1deg)',
+             opacity: '1'
+           },
+           '80%': { 
+             transform: 'scale(1.05) rotate(0.5deg)',
+             opacity: '1'
+           },
+           '100%': { 
+             transform: 'scale(1) rotate(0deg)',
+             opacity: '1'
+           },
+         },
          shimmer: {
            '0%': { transform: 'translateX(-100%)' },
            '100%': { transform: 'translateX(100%)' },

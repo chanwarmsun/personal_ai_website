@@ -169,78 +169,75 @@ export default function AgentsSection() {
               </motion.div>
             </div>
 
-            {/* 功能分类 + 控制面板 */}
-            <div className="flex flex-col lg:flex-row items-center justify-between gap-4">
-              {/* 功能分类 */}
-              <div className="flex flex-wrap gap-2 justify-center lg:justify-start">
-                {categories.map((category) => (
-                  <motion.button
-                    key={category.id}
-                    whileHover={{ scale: 1.02, y: -1 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => setSelectedCategory(category.id)}
-                    className={`relative inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-medium transition-all duration-300 ${
-                      selectedCategory === category.id
-                        ? 'bg-gradient-to-r from-indigo-500 to-violet-500 text-white shadow-lg shadow-indigo-200'
-                        : 'bg-white border border-gray-200 text-gray-700 hover:bg-indigo-50 hover:border-indigo-200 hover:shadow-md'
-                    }`}
-                  >
-                    <span className="text-base">{category.icon}</span>
-                    <span>{category.name}</span>
-                    <span className={`ml-1 px-1.5 py-0.5 rounded-full text-xs ${
-                      selectedCategory === category.id
-                        ? 'bg-white/20 text-white'
-                        : 'bg-gray-100 text-gray-500'
-                    }`}>
-                      {getCategoryCount(category.id)}
-                    </span>
-                  </motion.button>
-                ))}
+            {/* 功能分类按钮 - 居中显示 */}
+            <div className="flex flex-wrap gap-3 justify-center">
+              {categories.map((category) => (
+                <motion.button
+                  key={category.id}
+                  whileHover={{ scale: 1.02, y: -1 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setSelectedCategory(category.id)}
+                  className={`relative inline-flex items-center gap-2 px-5 py-3 rounded-2xl text-sm font-medium transition-all duration-300 ${
+                    selectedCategory === category.id
+                      ? 'bg-gradient-to-r from-indigo-500 to-violet-500 text-white shadow-lg shadow-indigo-200'
+                      : 'bg-white border border-gray-200 text-gray-700 hover:bg-indigo-50 hover:border-indigo-200 hover:shadow-md'
+                  }`}
+                >
+                  <span className="text-base">{category.icon}</span>
+                  <span>{category.name}</span>
+                  <span className={`ml-1 px-2 py-0.5 rounded-full text-xs ${
+                    selectedCategory === category.id
+                      ? 'bg-white/20 text-white'
+                      : 'bg-gray-100 text-gray-500'
+                  }`}>
+                    {getCategoryCount(category.id)}
+                  </span>
+                </motion.button>
+              ))}
+            </div>
+            
+            {/* 排序和视图控制 - 单独一行 */}
+            <div className="flex items-center justify-center gap-4">
+              {/* 排序选择 */}
+              <div className="flex items-center gap-2 bg-white rounded-xl px-4 py-2.5 shadow-md border border-gray-200">
+                <Filter size={16} className="text-gray-500" />
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as 'name' | 'downloads' | 'latest')}
+                  className="text-sm text-gray-700 bg-transparent border-none outline-none cursor-pointer"
+                >
+                  <option value="latest">最新发布</option>
+                  <option value="downloads">使用热度</option>
+                  <option value="name">名称排序</option>
+                </select>
               </div>
               
-              {/* 排序和视图控制 */}
-              <div className="flex items-center gap-3">
-                {/* 排序选择 */}
-                <div className="flex items-center gap-2 bg-white rounded-xl px-3 py-2 shadow-md border border-gray-200">
-                  <Filter size={16} className="text-gray-500" />
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as 'name' | 'downloads' | 'latest')}
-                    className="text-sm text-gray-700 bg-transparent border-none outline-none cursor-pointer"
-                  >
-                    <option value="latest">最新发布</option>
-                    <option value="downloads">使用热度</option>
-                    <option value="name">名称排序</option>
-                  </select>
-                </div>
-                
-                {/* 视图切换 */}
-                <div className="flex items-center gap-1 bg-white rounded-xl p-1 shadow-md border border-gray-200">
-                  <motion.button
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                    onClick={() => setViewMode('grid')}
-                    className={`p-2 rounded-lg transition-all duration-200 ${
-                      viewMode === 'grid' 
-                        ? 'bg-indigo-500 text-white shadow-md' 
-                        : 'text-gray-500 hover:text-indigo-500'
-                    }`}
-                  >
-                    <Grid size={16} />
-                  </motion.button>
-                  <motion.button
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                    onClick={() => setViewMode('list')}
-                    className={`p-2 rounded-lg transition-all duration-200 ${
-                      viewMode === 'list' 
-                        ? 'bg-indigo-500 text-white shadow-md' 
-                        : 'text-gray-500 hover:text-indigo-500'
-                    }`}
-                  >
-                    <List size={16} />
-                  </motion.button>
-                </div>
+              {/* 视图切换 */}
+              <div className="flex items-center gap-1 bg-white rounded-xl p-1 shadow-md border border-gray-200">
+                <motion.button
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => setViewMode('grid')}
+                  className={`p-2.5 rounded-lg transition-all duration-200 ${
+                    viewMode === 'grid' 
+                      ? 'bg-indigo-500 text-white shadow-md' 
+                      : 'text-gray-500 hover:text-indigo-500'
+                  }`}
+                >
+                  <Grid size={16} />
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => setViewMode('list')}
+                  className={`p-2.5 rounded-lg transition-all duration-200 ${
+                    viewMode === 'list' 
+                      ? 'bg-indigo-500 text-white shadow-md' 
+                      : 'text-gray-500 hover:text-indigo-500'
+                  }`}
+                >
+                  <List size={16} />
+                </motion.button>
               </div>
             </div>
             
