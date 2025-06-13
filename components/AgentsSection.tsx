@@ -198,47 +198,47 @@ export default function AgentsSection() {
             
             {/* 排序和视图控制 - 单独一行 */}
             <div className="flex items-center justify-center gap-4">
-              {/* 排序选择 */}
-              <div className="flex items-center gap-2 bg-white rounded-xl px-4 py-2.5 shadow-md border border-gray-200">
-                <Filter size={16} className="text-gray-500" />
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as 'name' | 'downloads' | 'latest')}
-                  className="text-sm text-gray-700 bg-transparent border-none outline-none cursor-pointer"
-                >
-                  <option value="latest">最新发布</option>
-                  <option value="downloads">使用热度</option>
-                  <option value="name">名称排序</option>
-                </select>
-              </div>
-              
-              {/* 视图切换 */}
-              <div className="flex items-center gap-1 bg-white rounded-xl p-1 shadow-md border border-gray-200">
-                <motion.button
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                  onClick={() => setViewMode('grid')}
-                  className={`p-2.5 rounded-lg transition-all duration-200 ${
-                    viewMode === 'grid' 
-                      ? 'bg-indigo-500 text-white shadow-md' 
-                      : 'text-gray-500 hover:text-indigo-500'
-                  }`}
-                >
-                  <Grid size={16} />
-                </motion.button>
-                <motion.button
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                  onClick={() => setViewMode('list')}
-                  className={`p-2.5 rounded-lg transition-all duration-200 ${
-                    viewMode === 'list' 
-                      ? 'bg-indigo-500 text-white shadow-md' 
-                      : 'text-gray-500 hover:text-indigo-500'
-                  }`}
-                >
-                  <List size={16} />
-                </motion.button>
-              </div>
+                              {/* 排序选择 */}
+                <div className="flex items-center gap-2 bg-white rounded-xl px-4 py-2.5 shadow-md border border-gray-200">
+                  <Filter size={18} className="text-gray-500" />
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as 'name' | 'downloads' | 'latest')}
+                    className="text-sm text-gray-700 bg-transparent border-none outline-none cursor-pointer"
+                  >
+                    <option value="latest">最新发布</option>
+                    <option value="downloads">使用热度</option>
+                    <option value="name">名称排序</option>
+                  </select>
+                </div>
+                
+                {/* 视图切换 */}
+                <div className="flex items-center gap-1 bg-white rounded-xl p-1 shadow-md border border-gray-200">
+                  <motion.button
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => setViewMode('grid')}
+                    className={`p-2.5 rounded-lg transition-all duration-200 ${
+                      viewMode === 'grid' 
+                        ? 'bg-indigo-500 text-white shadow-md' 
+                        : 'text-gray-500 hover:text-indigo-500'
+                    }`}
+                  >
+                    <Grid size={18} />
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => setViewMode('list')}
+                    className={`p-2.5 rounded-lg transition-all duration-200 ${
+                      viewMode === 'list' 
+                        ? 'bg-indigo-500 text-white shadow-md' 
+                        : 'text-gray-500 hover:text-indigo-500'
+                    }`}
+                  >
+                    <List size={18} />
+                  </motion.button>
+                </div>
             </div>
             
             {/* 搜索结果提示 */}

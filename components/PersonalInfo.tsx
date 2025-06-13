@@ -110,66 +110,111 @@ export default function PersonalInfo() {
                       transition={{ duration: 0.6, delay: 0.8 + index * 0.1 }}
                     >
                       <motion.button
-                        whileHover={{ scale: 1.08, y: -2 }}
-                        whileTap={{ scale: 0.95 }}
-                        className="btn-bounce inline-flex items-center px-4 py-3 bg-gradient-to-r from-indigo-500 to-violet-500 text-white rounded-xl font-medium shadow-lg hover:shadow-xl"
+                        whileHover={{ 
+                          scale: 1.08, 
+                          y: -3,
+                          boxShadow: "0 10px 30px rgba(99, 102, 241, 0.3)"
+                        }}
+                        whileTap={{ 
+                          scale: 0.92,
+                          y: 0,
+                          transition: { duration: 0.05 }
+                        }}
+                        onTap={() => {
+                          // 添加点击反馈触觉
+                          if (navigator.vibrate) {
+                            navigator.vibrate(50);
+                          }
+                        }}
+                        className="btn-bounce inline-flex items-center px-4 py-3 bg-gradient-to-r from-indigo-500 to-violet-500 text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-all duration-200"
+                        style={{
+                          transformOrigin: "center bottom"
+                        }}
                       >
-                        <link.icon size={20} className="mr-2" />
-                        {link.label}
+                        <motion.div
+                          whileTap={{ 
+                            scale: 0.8,
+                            transition: { duration: 0.05 }
+                          }}
+                        >
+                          <link.icon size={20} className="mr-2" />
+                        </motion.div>
+                        <motion.span
+                          whileTap={{ 
+                            scale: 0.95,
+                            transition: { duration: 0.05 }
+                          }}
+                        >
+                          {link.label}
+                        </motion.span>
                       </motion.button>
                       
-                      {/* 极速弹出二维码气泡 - 迪士尼微动效果 */}
+                      {/* 极速二维码弹出 - 无容器直接展示 */}
                       <motion.div
-                        initial={{ opacity: 0, scale: 0.1, rotate: -8 }}
+                        initial={{ opacity: 0, scale: 0.1, rotate: -10, y: 10 }}
                         animate={{ 
                           opacity: hoveredIcon === link.label ? 1 : 0,
                           scale: hoveredIcon === link.label ? 1 : 0.1,
-                          rotate: hoveredIcon === link.label ? 0 : -8,
+                          rotate: hoveredIcon === link.label ? 0 : -10,
+                          y: hoveredIcon === link.label ? 0 : 10,
                         }}
                         transition={{ 
-                          duration: 0.08, // 极速弹出 - 比眨眼还快
-                          ease: [0.68, -0.55, 0.265, 1.55], // 强回弹效果
+                          duration: 0.06, // 极速弹出
+                          ease: [0.25, 0.46, 0.45, 0.94], // 快速缓动
                           type: "spring",
-                          damping: 15,
-                          stiffness: 300
+                          damping: 20,
+                          stiffness: 400
                         }}
-                        className={`qr-tooltip ${hoveredIcon === link.label ? 'show' : ''}`}
-                        style={{ pointerEvents: hoveredIcon === link.label ? 'auto' : 'none' }}
+                        className="absolute -top-6 -right-6 bg-white rounded-2xl p-4 shadow-2xl border border-gray-100 z-50"
+                        style={{ 
+                          pointerEvents: hoveredIcon === link.label ? 'auto' : 'none',
+                          transformOrigin: "bottom left",
+                          filter: "drop-shadow(0 20px 30px rgba(0, 0, 0, 0.15))"
+                        }}
                       >
-                        <div className="relative">
-                          {/* 头像和名称 */}
-                          <div className="flex items-center gap-3 mb-3">
-                            <div className="w-8 h-8 bg-gradient-to-r from-indigo-500 to-violet-500 rounded-lg flex items-center justify-center flex-shrink-0">
-                              <link.icon size={14} className="text-white" />
+                        {/* 直接展示二维码 */}
+                        <motion.div 
+                          initial={{ scale: 0.5, opacity: 0 }}
+                          animate={{ 
+                            scale: hoveredIcon === link.label ? 1 : 0.5,
+                            opacity: hoveredIcon === link.label ? 1 : 0
+                          }}
+                          transition={{ 
+                            delay: 0.02,
+                            duration: 0.08,
+                            ease: "easeOut"
+                          }}
+                          className="w-32 h-32 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl flex items-center justify-center border-2 border-gray-200 relative overflow-hidden"
+                        >
+                          {/* 实际二维码显示区域 */}
+                          <div className="w-28 h-28 bg-white rounded-lg border border-gray-300 flex flex-col items-center justify-center">
+                            <div className="w-6 h-6 bg-gradient-to-r from-indigo-500 to-violet-500 rounded-md mb-2 flex items-center justify-center">
+                              <link.icon size={12} className="text-white" />
                             </div>
-                            <div>
-                              <div className="text-sm font-semibold text-gray-800">陈老师</div>
-                              <div className="text-xs text-gray-500">{link.label}</div>
+                            <div className="text-xs text-gray-600 font-medium text-center">
+                              {link.label}
+                            </div>
+                            <div className="text-xs text-gray-400 mt-1">
+                              二维码
                             </div>
                           </div>
                           
-                          {/* 二维码区域 */}
-                          <div className="w-28 h-28 bg-gray-50 rounded-xl flex items-center justify-center mb-3 border border-gray-100 relative overflow-hidden">
-                            <div className="absolute inset-0 bg-gradient-to-br from-indigo-25 to-violet-25"></div>
-                            <div className="relative z-10 w-24 h-24 bg-white rounded-lg border-2 border-gray-200 flex items-center justify-center">
-                              <div className="text-xs text-gray-400 text-center leading-tight">
-                                {link.label}<br/>二维码
-                              </div>
-                            </div>
-                          </div>
-                          
+                          {/* 扫描提示 */}
                           <motion.div 
-                            initial={{ opacity: 0, scale: 0.8 }}
+                            initial={{ opacity: 0, y: 5 }}
                             animate={{ 
                               opacity: hoveredIcon === link.label ? 1 : 0,
-                              scale: hoveredIcon === link.label ? 1 : 0.8
+                              y: hoveredIcon === link.label ? 0 : 5
                             }}
-                            transition={{ delay: 0.1, duration: 0.2 }}
-                            className="text-center"
+                            transition={{ delay: 0.1, duration: 0.1 }}
+                            className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded-md whitespace-nowrap"
                           >
-                            <div className="text-xs text-gray-600 font-medium">扫码添加{link.label}</div>
+                            扫码添加
                           </motion.div>
-                        </div>
+                        </motion.div>
+                        
+                        {/* 箭头指示 */}
+                        <div className="absolute bottom-4 left-0 transform -translate-x-1 w-0 h-0 border-t-4 border-b-4 border-r-4 border-transparent border-r-white"></div>
                       </motion.div>
                     </motion.div>
                   ))}
