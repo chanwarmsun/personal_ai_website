@@ -52,7 +52,7 @@ export default function Footer() {
               {[
                 { name: '智能体', href: '#agents' },
                 { name: '提示词', href: '#prompts' },
-                { name: '教程资源', href: '#resources' },
+                { name: 'AI教学资源', href: '#resources' },
                 { name: '关于我', href: '#home' }
               ].map((link) => (
                 <a

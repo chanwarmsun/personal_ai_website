@@ -13,7 +13,7 @@ export default function Header() {
     { name: '首页', href: '#home' },
     { name: '智能体', href: '#agents' },
     { name: '提示词', href: '#prompts' },
-    { name: '教程', href: '#resources' },
+    { name: 'AI教学资源', href: '#resources' },
     { name: '关于', href: '#about' }
   ]
 

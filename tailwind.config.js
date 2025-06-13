@@ -58,6 +58,28 @@ module.exports = {
            '50%': { transform: 'scale(1.1)' },
            '100%': { transform: 'scale(1)' },
          },
+         qrBounceIn: {
+           '0%': { 
+             transform: 'translateX(-50%) scale(0.3)',
+             opacity: '0'
+           },
+           '50%': { 
+             transform: 'translateX(-50%) scale(1.05)',
+             opacity: '0.8'
+           },
+           '70%': { 
+             transform: 'translateX(-50%) scale(0.95)',
+             opacity: '0.9'
+           },
+           '100%': { 
+             transform: 'translateX(-50%) scale(1)',
+             opacity: '1'
+           },
+         },
+         shimmer: {
+           '0%': { transform: 'translateX(-100%)' },
+           '100%': { transform: 'translateX(100%)' },
+         },
        },
       fontFamily: {
         sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],

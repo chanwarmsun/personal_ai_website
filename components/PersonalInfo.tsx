@@ -127,28 +127,47 @@ export default function PersonalInfo() {
                         {link.label}
                       </motion.button>
                       
-                      {/* 二维码气泡 */}
+                      {/* 丝滑Q弹二维码气泡 */}
                       <motion.div
-                        initial={{ opacity: 0, scale: 0.8, y: 10 }}
+                        initial={{ opacity: 0, scale: 0.3 }}
                         animate={{ 
                           opacity: hoveredIcon === link.label ? 1 : 0,
-                          scale: hoveredIcon === link.label ? 1 : 0.8,
-                          y: hoveredIcon === link.label ? 0 : 10
+                          scale: hoveredIcon === link.label ? 1 : 0.3,
                         }}
-                        transition={{ duration: 0.3, ease: "easeOut" }}
-                        className="qr-tooltip"
+                        transition={{ 
+                          duration: 0.5,
+                          ease: [0.68, -0.55, 0.265, 1.55]
+                        }}
+                        className={`qr-tooltip ${hoveredIcon === link.label ? 'show' : ''}`}
                         style={{ pointerEvents: hoveredIcon === link.label ? 'auto' : 'none' }}
                       >
-                        <div className="w-32 h-32 bg-gray-100 rounded-lg flex items-center justify-center mb-2">
-                          <div className="text-xs text-gray-500 text-center">
-                            {link.label}<br/>二维码
+                        <div className="qr-card">
+                          <div className="qr-shimmer"></div>
+                          <div className="w-36 h-36 bg-white rounded-2xl flex items-center justify-center mb-3 border-2 border-gray-100 relative overflow-hidden">
+                            <div className="absolute inset-0 bg-gradient-to-br from-indigo-50 to-violet-50"></div>
+                            <div className="relative z-10 text-center">
+                              <div className="w-8 h-8 bg-gradient-to-r from-indigo-500 to-violet-500 rounded-lg mx-auto mb-2 flex items-center justify-center">
+                                <link.icon size={16} className="text-white" />
+                              </div>
+                              <div className="text-xs text-gray-700 font-medium">
+                                {link.label}
+                              </div>
+                              <div className="text-xs text-gray-500 mt-1">
+                                二维码
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                        <p className="text-xs text-gray-600 text-center">扫码添加</p>
-                        
-                        {/* 小箭头 */}
-                        <div className="absolute top-full left-1/2 transform -translate-x-1/2">
-                          <div className="w-0 h-0 border-l-6 border-r-6 border-t-6 border-transparent border-t-white"></div>
+                          <motion.p 
+                            initial={{ opacity: 0, y: 5 }}
+                            animate={{ 
+                              opacity: hoveredIcon === link.label ? 1 : 0,
+                              y: hoveredIcon === link.label ? 0 : 5
+                            }}
+                            transition={{ delay: 0.2 }}
+                            className="text-sm text-gray-700 text-center font-medium"
+                          >
+                            扫码添加{link.label}
+                          </motion.p>
                         </div>
                       </motion.div>
                     </motion.div>
