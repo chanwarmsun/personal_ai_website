@@ -1,0 +1,86 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    overflow-x: hidden;
+  }
+  
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  * {
+    scroll-behavior: smooth;
+    will-change: auto;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: rgba(99, 102, 241, 0.3);
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(99, 102, 241, 0.5);
+  }
+}
+
+@layer components {
+  .bento-card {
+    @apply bg-white/90 backdrop-blur-sm rounded-3xl p-6 shadow-lg hover:shadow-2xl transition-all duration-500 border border-white/30 will-change-transform;
+  }
+  
+  .bento-card:hover {
+    @apply transform -translate-y-2 bg-white/95 scale-[1.02] shadow-indigo-500/20;
+  }
+  
+  .glass-effect {
+    @apply bg-white/10 backdrop-blur-md border border-white/20;
+  }
+  
+  .gradient-text {
+    @apply bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 bg-clip-text text-transparent;
+  }
+
+  .btn-bounce {
+    @apply transition-all duration-300 hover:scale-105 hover:shadow-lg active:scale-95;
+  }
+
+  .card-interactive {
+    @apply transition-all duration-500 hover:scale-[1.02] hover:-translate-y-1 hover:shadow-xl;
+  }
+
+  .qr-tooltip {
+    @apply absolute -top-24 left-1/2 transform -translate-x-1/2 bg-white rounded-2xl p-4 shadow-2xl border border-gray-200 opacity-0 scale-75 transition-all duration-300 pointer-events-none z-50;
+  }
+
+  .qr-tooltip.show {
+    @apply opacity-100 scale-100 pointer-events-auto;
+  }
+}
+
+@layer utilities {
+  .animation-delay-200 {
+    animation-delay: 200ms;
+  }
+  
+  .animation-delay-400 {
+    animation-delay: 400ms;
+  }
+  
+  .animation-delay-600 {
+    animation-delay: 600ms;
+  }
+} 
