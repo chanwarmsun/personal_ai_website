@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { MessageCircle, Phone, Megaphone, Download, ExternalLink, Bookmark, Hash } from 'lucide-react'
+import { MessageCircle, Phone, Megaphone, Download, ExternalLink, Bookmark, Users } from 'lucide-react'
 import Image from 'next/image'
 import { useState, useRef } from 'react'
 import contentData from '../data/content.json'
@@ -13,7 +13,7 @@ export default function PersonalInfo() {
   const socialLinks = [
     { icon: Megaphone, url: personalInfo.links.gongzhonghao, label: '公众号', qrCode: '/qr-gongzhonghao.png' },
     { icon: MessageCircle, url: personalInfo.links.wechat, label: '微信', qrCode: '/qr-wechat.png' },
-    { icon: Hash, url: personalInfo.links.qq, label: 'QQ', qrCode: '/qr-qq.png' },
+    { icon: Users, url: personalInfo.links.qq, label: 'QQ', qrCode: '/qr-qq.png' },
     { icon: Bookmark, url: '#', label: '小红书', qrCode: '/qr-xiaohongshu.png' },
   ]
 
@@ -116,16 +116,17 @@ export default function PersonalInfo() {
                           ref={btnRef}
                           animate={{ scale: isActive ? 1.12 : 1 }}
                           transition={{ duration: 0.08, type: 'spring', stiffness: 600, damping: 20 }}
-                          className={`btn-bounce inline-flex items-center px-4 py-3 bg-gradient-to-r from-indigo-500 to-violet-500 text-white rounded-xl font-medium shadow-lg hover:shadow-xl transform-gpu border-2 ${isActive ? 'border-transparent ring-2 ring-indigo-400 ring-offset-2' : 'border-transparent'}`}
+                          className={`btn-bounce inline-flex items-center justify-center w-24 h-12 bg-gradient-to-r from-indigo-500 to-violet-500 text-white rounded-xl font-medium shadow-lg hover:shadow-xl transform-gpu border-2 text-sm ${isActive ? 'border-transparent ring-2 ring-indigo-400 ring-offset-2' : 'border-transparent'}`}
                           style={{ position: 'relative', zIndex: 10 }}
                       >
                         <motion.div
                             animate={{ rotate: isActive ? [0, -3, 3, 0] : 0 }}
                             transition={{ duration: 0.08, ease: 'easeInOut' }}
+                            className="mr-1.5"
                         >
-                            <link.icon size={16} className="mr-2" />
+                            <link.icon size={14} />
                         </motion.div>
-                        {link.label}
+                        <span className="whitespace-nowrap">{link.label}</span>
                       </motion.button>
                         {/* 二维码绝对定位到按钮右上角 */}
                         {isActive && btnRef.current && (
