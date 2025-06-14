@@ -10,7 +10,6 @@ export default function Footer() {
 
   const socialLinks = [
     { icon: MessageCircle, url: personalInfo.links.wechat, label: '微信' },
-    { icon: Phone, url: personalInfo.links.qq, label: 'QQ' },
     { icon: Megaphone, url: personalInfo.links.gongzhonghao, label: '公众号' },
   ]
 

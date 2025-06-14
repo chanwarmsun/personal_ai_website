@@ -14,7 +14,6 @@ export default function PersonalInfo() {
     { icon: Megaphone, url: personalInfo.links.gongzhonghao, label: '公众号', qrCode: '/qr-gongzhonghao.png' },
     { icon: MessageCircle, url: personalInfo.links.wechat, label: '微信', qrCode: '/qr-wechat.png' },
     { icon: Bookmark, url: '#', label: '小红书', qrCode: '/qr-xiaohongshu.png' },
-    { icon: Phone, url: personalInfo.links.qq, label: 'QQ', qrCode: '/qr-qq.png' },
   ]
 
   return (
