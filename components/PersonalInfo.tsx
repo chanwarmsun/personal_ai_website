@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { MessageCircle, Phone, Megaphone, Download, ExternalLink, Bookmark } from 'lucide-react'
+import { MessageCircle, Phone, Megaphone, Download, ExternalLink, Bookmark, Hash } from 'lucide-react'
 import Image from 'next/image'
 import { useState, useRef } from 'react'
 import contentData from '../data/content.json'
@@ -13,6 +13,7 @@ export default function PersonalInfo() {
   const socialLinks = [
     { icon: Megaphone, url: personalInfo.links.gongzhonghao, label: '公众号', qrCode: '/qr-gongzhonghao.png' },
     { icon: MessageCircle, url: personalInfo.links.wechat, label: '微信', qrCode: '/qr-wechat.png' },
+    { icon: Hash, url: personalInfo.links.qq, label: 'QQ', qrCode: '/qr-qq.png' },
     { icon: Bookmark, url: '#', label: '小红书', qrCode: '/qr-xiaohongshu.png' },
   ]
 
