@@ -218,12 +218,16 @@ export default function AdminPage() {
           if (updated) {
             const newAgents = agents.map((item, i) => i === editingIndex ? updated : item)
             await saveAgents(newAgents)
+            // 重新加载数据以确保同步
+            await loadAgents()
           }
         } else if (active === 'prompts') {
           const updated = await promptOperations.update(form.id, form)
           if (updated) {
             const newPrompts = prompts.map((item, i) => i === editingIndex ? updated : item)
             await savePrompts(newPrompts)
+            // 重新加载数据以确保同步
+            await loadPrompts()
           }
         } else {
           const updated = await resourceOperations.update(form.id, {
@@ -233,6 +237,8 @@ export default function AdminPage() {
           if (updated) {
             const newResources = resources.map((item, i) => i === editingIndex ? updated : item)
             await saveResources(newResources)
+            // 重新加载数据以确保同步
+            await loadResources()
           }
         }
         setEditingIndex(null)
@@ -242,11 +248,15 @@ export default function AdminPage() {
           const created = await agentOperations.create(form)
           if (created) {
             await saveAgents([...agents, created])
+            // 重新加载数据以确保同步
+            await loadAgents()
           }
         } else if (active === 'prompts') {
           const created = await promptOperations.create(form)
           if (created) {
             await savePrompts([...prompts, created])
+            // 重新加载数据以确保同步
+            await loadPrompts()
           }
         } else {
           const created = await resourceOperations.create({
@@ -255,6 +265,8 @@ export default function AdminPage() {
           })
           if (created) {
             await saveResources([...resources, created])
+            // 重新加载数据以确保同步
+            await loadResources()
           }
         }
       }
@@ -286,18 +298,24 @@ export default function AdminPage() {
           if (success) {
             const updated = currentData.filter((_, i) => i !== idx)
             await saveAgents(updated)
+            // 重新加载数据以确保同步
+            await loadAgents()
           }
         } else if (active === 'prompts') {
           const success = await promptOperations.delete(item.id)
           if (success) {
             const updated = currentData.filter((_, i) => i !== idx)
             await savePrompts(updated)
+            // 重新加载数据以确保同步
+            await loadPrompts()
           }
         } else {
           const success = await resourceOperations.delete(item.id)
           if (success) {
             const updated = currentData.filter((_, i) => i !== idx)
             await saveResources(updated)
+            // 重新加载数据以确保同步
+            await loadResources()
           }
         }
         
