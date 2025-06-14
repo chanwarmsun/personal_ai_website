@@ -3,6 +3,7 @@
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Send, FileText, MessageSquare, Bot } from 'lucide-react'
+import { requestOperations } from '../lib/database'
 
 interface CustomRequestModalProps {
   isOpen: boolean
@@ -60,38 +61,85 @@ export default function CustomRequestModal({ isOpen, onClose, type }: CustomRequ
     e.preventDefault()
     setIsSubmitting(true)
 
-    // 模拟提交延迟
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    try {
+      // 准备提交数据
+      const request = {
+        type,
+        name: form.name,
+        email: form.email,
+        title: form.title,
+        description: form.description,
+        requirements: form.requirements,
+        urgency: form.urgency,
+        contact: form.contact,
+        status: '待处理' as const
+      }
 
-    // 保存到localStorage (后续可替换为数据库)
-    const request = {
-      id: Date.now().toString(),
-      type,
-      ...form,
-      status: '待处理',
-      createdAt: new Date().toISOString()
+      // 先尝试保存到数据库
+      const dbResult = await requestOperations.create(request)
+      
+      if (dbResult) {
+        console.log('✅ 定制申请已保存到数据库:', dbResult)
+      } else {
+        console.warn('⚠️ 数据库保存失败，回退到localStorage')
+        // 如果数据库保存失败，回退到localStorage
+        const localRequest = {
+          id: Date.now().toString(),
+          ...request,
+          createdAt: new Date().toISOString()
+        }
+        const existingRequests = JSON.parse(localStorage.getItem('custom_requests') || '[]')
+        localStorage.setItem('custom_requests', JSON.stringify([...existingRequests, localRequest]))
+      }
+
+      setIsSubmitting(false)
+      setSubmitted(true)
+
+      // 3秒后关闭模态框
+      setTimeout(() => {
+        setSubmitted(false)
+        setForm({
+          name: '',
+          email: '',
+          title: '',
+          description: '',
+          requirements: '',
+          urgency: '普通',
+          contact: ''
+        })
+        onClose()
+      }, 3000)
+    } catch (error) {
+      console.error('❌ 提交定制申请失败:', error)
+      // 发生错误时也回退到localStorage
+      const localRequest = {
+        id: Date.now().toString(),
+        type,
+        ...form,
+        status: '待处理',
+        createdAt: new Date().toISOString()
+      }
+      const existingRequests = JSON.parse(localStorage.getItem('custom_requests') || '[]')
+      localStorage.setItem('custom_requests', JSON.stringify([...existingRequests, localRequest]))
+      
+      setIsSubmitting(false)
+      setSubmitted(true)
+
+      // 3秒后关闭模态框
+      setTimeout(() => {
+        setSubmitted(false)
+        setForm({
+          name: '',
+          email: '',
+          title: '',
+          description: '',
+          requirements: '',
+          urgency: '普通',
+          contact: ''
+        })
+        onClose()
+      }, 3000)
     }
-
-    const existingRequests = JSON.parse(localStorage.getItem('custom_requests') || '[]')
-    localStorage.setItem('custom_requests', JSON.stringify([...existingRequests, request]))
-
-    setIsSubmitting(false)
-    setSubmitted(true)
-
-    // 3秒后关闭模态框
-    setTimeout(() => {
-      setSubmitted(false)
-      setForm({
-        name: '',
-        email: '',
-        title: '',
-        description: '',
-        requirements: '',
-        urgency: '普通',
-        contact: ''
-      })
-      onClose()
-    }, 3000)
   }
 
   if (!isOpen) return null
