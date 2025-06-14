@@ -1,76 +1,83 @@
-# 项目部署指南
+# 部署指南 - Vercel部署
 
-## 部署到Vercel
+## 前置条件
 
-### 前置条件
-1. GitHub账号
-2. Vercel账号（可以用GitHub登录）
-3. Supabase数据库已配置
+1. 确保你有一个GitHub账户，并且项目已经推送到GitHub
+2. 注册Vercel账户（可以使用GitHub账户登录）
+3. 确保Supabase数据库已经设置完成
 
-### 部署步骤
+## 部署步骤
 
-#### 1. 推送代码到GitHub
-```bash
-git add .
-git commit -m "准备部署到Vercel"
-git push origin master
-```
+### 1. 登录Vercel
 
-#### 2. 连接Vercel
-1. 访问 [vercel.com](https://vercel.com)
-2. 使用GitHub账号登录
-3. 点击 "New Project"
-4. 选择你的GitHub仓库 `chanwarmsun/person-ipweb`
-5. 点击 "Import"
+访问 [vercel.com](https://vercel.com) 并使用GitHub账户登录。
 
-#### 3. 配置环境变量
-在Vercel项目设置中添加以下环境变量：
+### 2. 导入项目
+
+1. 点击 "New Project" 按钮
+2. 选择你的GitHub仓库（个人IP网站项目）
+3. 点击 "Import" 按钮
+
+### 3. 配置环境变量
+
+在项目设置中，添加以下环境变量：
 
 ```
 NEXT_PUBLIC_SUPABASE_URL=https://mvrikhctrwowswcamkfj.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im12cmlraGN0cndvd3N3Y2Fta2ZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk4MzUyMjIsImV4cCI6MjA2NTQxMTIyMn0.xFEVSItfhhgI7Ow9-2v0Bz1MNdGaW2QQEtEn2PaA4kg
 ```
 
-#### 4. 部署设置
+### 4. 部署设置
+
 - Framework Preset: Next.js
 - Build Command: `npm run build`
 - Output Directory: `.next`
 - Install Command: `npm install`
 
-#### 5. 域名配置（可选）
-部署完成后，Vercel会提供一个默认域名，如：
-`https://person-ipweb.vercel.app`
+### 5. 部署
 
-你也可以配置自定义域名。
+点击 "Deploy" 按钮开始部署。
 
-### 数据库配置
+## 部署后验证
 
-确保Supabase数据库中的表已正确创建：
+1. 访问分配的Vercel域名
+2. 测试网站各个功能：
+   - 首页显示
+   - 智能体、提示词、教学资源展示
+   - 管理后台登录（/admin-login）
+   - 数据库CRUD操作
+   - 测试页面（/test-db）
 
-1. **agents** - 智能体表
-2. **prompts** - 提示词表  
-3. **teaching_resources** - 教学资源表
-4. **custom_requests** - 定制需求表
+## 自定义域名（可选）
 
-### 功能验证
+1. 在Vercel项目设置中点击 "Domains"
+2. 添加你的自定义域名
+3. 按照提示配置DNS记录
 
-部署完成后，请验证以下功能：
+## 注意事项
 
-1. ✅ 首页正常显示
-2. ✅ 智能体、提示词、教学资源正常加载
-3. ✅ 管理后台登录正常（密码：admin123）
-4. ✅ 管理后台CRUD操作正常
-5. ✅ 数据库连接正常
-6. ✅ 定制需求提交正常
+1. 确保Supabase数据库的RLS策略已正确配置
+2. 检查所有环境变量是否正确设置
+3. 如果遇到部署问题，查看Vercel的构建日志
+4. 首次部署可能需要几分钟时间
 
-### 故障排除
+## 常见问题
 
-如果遇到问题：
+### 数据库连接失败
+- 检查Supabase URL和API Key是否正确
+- 确认Supabase项目状态正常
 
-1. 检查Vercel部署日志
-2. 检查环境变量配置
-3. 检查Supabase数据库连接
-4. 查看浏览器控制台错误信息
+### 页面404错误
+- 检查Next.js路由配置
+- 确认vercel.json配置正确
+
+### 构建失败
+- 检查package.json依赖
+- 查看构建日志中的错误信息
+
+## 更新部署
+
+每次推送代码到GitHub主分支时，Vercel会自动重新部署。
 
 ### 项目特色
 
