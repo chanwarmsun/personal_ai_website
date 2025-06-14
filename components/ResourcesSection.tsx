@@ -2,10 +2,22 @@
 
 import { motion } from 'framer-motion'
 import { FileText, Download, BookOpen, Award, TrendingUp } from 'lucide-react'
+import { useState, useEffect } from 'react'
 import contentData from '../data/content.json'
+import CustomRequestModal from './CustomRequestModal'
 
 export default function ResourcesSection() {
-  const { teachingResources } = contentData
+  const [allResources, setAllResources] = useState(contentData.teachingResources)
+  const [showRequestModal, setShowRequestModal] = useState(false)
+
+  useEffect(() => {
+    // 合并原始数据和自定义数据
+    const customResources = localStorage.getItem('custom_resources')
+    if (customResources) {
+      const parsed = JSON.parse(customResources)
+      setAllResources([...contentData.teachingResources, ...parsed])
+    }
+  }, [])
 
   const handleDownload = (resource: any) => {
     // 创建下载链接
@@ -20,11 +32,14 @@ export default function ResourcesSection() {
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
       case '初级':
+      case '学生用':
         return 'bg-green-100 text-green-700'
       case '中级':
+      case '教师用':
         return 'bg-yellow-100 text-yellow-700'
       case '高级':
-        return 'bg-red-100 text-red-700'
+      case '通用':
+        return 'bg-blue-100 text-blue-700'
       default:
         return 'bg-gray-100 text-gray-700'
     }
@@ -40,6 +55,14 @@ export default function ResourcesSection() {
         return <FileText size={20} className="text-purple-500" />
       case '模板':
         return <FileText size={20} className="text-orange-500" />
+      case '课件':
+        return <BookOpen size={20} className="text-indigo-500" />
+      case '实训':
+        return <Award size={20} className="text-red-500" />
+      case '案例':
+        return <FileText size={20} className="text-green-500" />
+      case '工具':
+        return <FileText size={20} className="text-purple-500" />
       default:
         return <FileText size={20} className="text-gray-500" />
     }
@@ -71,7 +94,7 @@ export default function ResourcesSection() {
         </motion.div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
-          {teachingResources.map((resource, index) => (
+          {allResources.map((resource, index) => (
             <motion.div
               key={resource.id}
               initial={{ opacity: 0, y: 20 }}
@@ -145,6 +168,7 @@ export default function ResourcesSection() {
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
+            onClick={() => setShowRequestModal(true)}
             className="btn-bounce inline-flex items-center px-6 py-3 border-2 border-indigo-600 text-indigo-600 rounded-xl font-medium hover:bg-indigo-600 hover:text-white transition-all duration-300"
           >
             <BookOpen size={20} className="mr-2" />
@@ -152,6 +176,13 @@ export default function ResourcesSection() {
           </motion.button>
         </motion.div>
       </div>
+      
+      {/* 定制申请模态框 */}
+      <CustomRequestModal
+        isOpen={showRequestModal}
+        onClose={() => setShowRequestModal(false)}
+        type="resource"
+      />
     </section>
   )
 } 

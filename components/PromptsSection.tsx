@@ -2,12 +2,23 @@
 
 import { motion } from 'framer-motion'
 import { Hash, Download, Copy, TrendingUp } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import contentData from '../data/content.json'
+import CustomRequestModal from './CustomRequestModal'
 
 export default function PromptsSection() {
-  const { prompts } = contentData
+  const [allPrompts, setAllPrompts] = useState(contentData.prompts)
   const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [showRequestModal, setShowRequestModal] = useState(false)
+
+  useEffect(() => {
+    // 合并原始数据和自定义数据
+    const customPrompts = localStorage.getItem('custom_prompts')
+    if (customPrompts) {
+      const parsed = JSON.parse(customPrompts)
+      setAllPrompts([...contentData.prompts, ...parsed])
+    }
+  }, [])
 
   const handleCopy = async (content: string, id: string) => {
     try {
@@ -57,7 +68,7 @@ export default function PromptsSection() {
         </motion.div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {prompts.map((prompt, index) => (
+          {allPrompts.map((prompt, index) => (
             <motion.div
               key={prompt.id}
               initial={{ opacity: 0, y: 20 }}
@@ -90,7 +101,7 @@ export default function PromptsSection() {
               {/* 标签和下载统计 */}
               <div className="flex items-center justify-between mb-4">
                 <div className="flex flex-wrap gap-2">
-                  {prompt.tags.map((tag) => (
+                  {prompt.tags.map((tag: string) => (
                     <span
                       key={tag}
                       className="px-3 py-1 bg-violet-50 text-violet-600 text-sm rounded-full"
@@ -143,6 +154,7 @@ export default function PromptsSection() {
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
+            onClick={() => setShowRequestModal(true)}
             className="btn-bounce inline-flex items-center px-6 py-3 border-2 border-violet-600 text-violet-600 rounded-xl font-medium hover:bg-violet-600 hover:text-white transition-all duration-300"
           >
             <Hash size={20} className="mr-2" />
@@ -150,6 +162,13 @@ export default function PromptsSection() {
           </motion.button>
         </motion.div>
       </div>
+      
+      {/* 定制申请模态框 */}
+      <CustomRequestModal
+        isOpen={showRequestModal}
+        onClose={() => setShowRequestModal(false)}
+        type="prompt"
+      />
     </section>
   )
 } 

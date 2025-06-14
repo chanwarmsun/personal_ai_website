@@ -4,17 +4,16 @@
     "title": "AI教育实践者",
     "slogan": "助力教育工作者拥抱AI时代，让每个人都能掌握AI工具",
     "bio": "专注AI教育与实践应用，致力于将复杂的AI技术转化为易懂的教学内容",
-    "avatar": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop&crop=face",
+    "avatar": "/images/my-avatar.jpg",
          "skills": [
        { "name": "AI教育", "level": 95 },
        { "name": "课程设计", "level": 90 },
-       { "name": "智能体开发", "level": 88 },
+       { "name": "智能体开发", "level": 95 },
        { "name": "教学创新", "level": 92 }
      ],
      "links": {
        "resume": "/resume.pdf",
        "wechat": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
-       "qq": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
        "gongzhonghao": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
      }
   },

@@ -1,17 +1,27 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Bot, ExternalLink, Download, Play, Filter, Grid, List, Search, X } from 'lucide-react'
+import { Bot, ExternalLink, Download, Play, Filter, Grid, List, Search, X, Sparkles } from 'lucide-react'
 import Image from 'next/image'
 import { useState } from 'react'
 import contentData from '../data/content.json'
+import CustomRequestModal from './CustomRequestModal'
 
 export default function AgentsSection() {
-  const { agents } = contentData
+  const { agents: originalAgents } = contentData
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [selectedCategory, setSelectedCategory] = useState<string>('全部')
   const [searchQuery, setSearchQuery] = useState<string>('')
   const [sortBy, setSortBy] = useState<'name' | 'downloads' | 'latest'>('latest')
+  const [showRequestModal, setShowRequestModal] = useState(false)
+  
+  // 合并原有智能体和自定义智能体
+  const getAgents = () => {
+    const customAgents = localStorage ? JSON.parse(localStorage.getItem('custom_agents') || '[]') : []
+    return [...originalAgents, ...customAgents]
+  }
+  
+  const agents = getAgents()
   
   // 智能分类系统 - 基于功能而非技术标签
   const categories = [
@@ -32,7 +42,7 @@ export default function AgentsSection() {
       const category = categories.find(cat => cat.id === selectedCategory)
       if (category && category.keywords) {
         filtered = filtered.filter(agent => 
-          agent.tags.some(tag => 
+          agent.tags.some((tag: string) => 
             category.keywords!.some(keyword => 
               tag.includes(keyword) || agent.name.includes(keyword) || agent.description.includes(keyword)
             )
@@ -46,7 +56,7 @@ export default function AgentsSection() {
       filtered = filtered.filter(agent => 
         agent.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         agent.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        agent.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
+        agent.tags.some((tag: string) => tag.toLowerCase().includes(searchQuery.toLowerCase()))
       )
     }
     
@@ -74,7 +84,7 @@ export default function AgentsSection() {
     const category = categories.find(cat => cat.id === categoryId)
     if (!category || !category.keywords) return 0
     return agents.filter(agent => 
-      agent.tags.some(tag => 
+      agent.tags.some((tag: string) => 
         category.keywords!.some(keyword => 
           tag.includes(keyword) || agent.name.includes(keyword) || agent.description.includes(keyword)
         )
@@ -170,21 +180,21 @@ export default function AgentsSection() {
             </div>
 
             {/* 功能分类按钮 - 居中显示 */}
-            <div className="flex flex-wrap gap-3 justify-center">
+            <div className="flex flex-nowrap gap-3 justify-center overflow-x-auto scrollbar-hide py-2">
               {categories.map((category) => (
                 <motion.button
                   key={category.id}
                   whileHover={{ scale: 1.02, y: -1 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => setSelectedCategory(category.id)}
-                  className={`relative inline-flex items-center gap-2 px-5 py-3 rounded-2xl text-sm font-medium transition-all duration-300 ${
+                  className={`relative inline-flex items-center gap-2 px-3 py-2 rounded-2xl text-xs font-medium transition-all duration-300 max-w-[140px] min-w-0 w-auto whitespace-nowrap overflow-hidden text-ellipsis ${
                     selectedCategory === category.id
                       ? 'bg-gradient-to-r from-indigo-500 to-violet-500 text-white shadow-lg shadow-indigo-200'
                       : 'bg-white border border-gray-200 text-gray-700 hover:bg-indigo-50 hover:border-indigo-200 hover:shadow-md'
                   }`}
                 >
                   <span className="text-base">{category.icon}</span>
-                  <span>{category.name}</span>
+                  <span className="whitespace-nowrap overflow-hidden text-ellipsis">{category.name}</span>
                   <span className={`ml-1 px-2 py-0.5 rounded-full text-xs ${
                     selectedCategory === category.id
                       ? 'bg-white/20 text-white'
@@ -198,47 +208,48 @@ export default function AgentsSection() {
             
             {/* 排序和视图控制 - 单独一行 */}
             <div className="flex items-center justify-center gap-4">
-                              {/* 排序选择 */}
-                <div className="flex items-center gap-2 bg-white rounded-xl px-4 py-2.5 shadow-md border border-gray-200">
-                  <Filter size={18} className="text-gray-500" />
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as 'name' | 'downloads' | 'latest')}
-                    className="text-sm text-gray-700 bg-transparent border-none outline-none cursor-pointer"
-                  >
-                    <option value="latest">最新发布</option>
-                    <option value="downloads">使用热度</option>
-                    <option value="name">名称排序</option>
-                  </select>
-                </div>
-                
-                {/* 视图切换 */}
-                <div className="flex items-center gap-1 bg-white rounded-xl p-1 shadow-md border border-gray-200">
-                  <motion.button
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                    onClick={() => setViewMode('grid')}
-                    className={`p-2.5 rounded-lg transition-all duration-200 ${
-                      viewMode === 'grid' 
-                        ? 'bg-indigo-500 text-white shadow-md' 
-                        : 'text-gray-500 hover:text-indigo-500'
-                    }`}
-                  >
-                    <Grid size={18} />
-                  </motion.button>
-                  <motion.button
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                    onClick={() => setViewMode('list')}
-                    className={`p-2.5 rounded-lg transition-all duration-200 ${
-                      viewMode === 'list' 
-                        ? 'bg-indigo-500 text-white shadow-md' 
-                        : 'text-gray-500 hover:text-indigo-500'
-                    }`}
-                  >
-                    <List size={18} />
-                  </motion.button>
-                </div>
+              {/* 排序选择 */}
+              <div className="flex items-center gap-2 bg-white rounded-xl h-12 px-4 shadow-md border border-gray-200">
+                <Filter size={16} className="text-gray-500" />
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as 'name' | 'downloads' | 'latest')}
+                  className="text-sm text-gray-700 bg-transparent border-none outline-none cursor-pointer"
+                  style={{ height: '2rem' }}
+                >
+                  <option value="latest">最新发布</option>
+                  <option value="downloads">使用热度</option>
+                  <option value="name">名称排序</option>
+                </select>
+              </div>
+              
+              {/* 视图切换 */}
+              <div className="flex items-center gap-1 bg-white rounded-xl h-12 p-1 shadow-md border border-gray-200">
+                <motion.button
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => setViewMode('grid')}
+                  className={`h-10 w-10 flex items-center justify-center rounded-lg transition-all duration-200 ${
+                    viewMode === 'grid' 
+                      ? 'bg-indigo-500 text-white shadow-md' 
+                      : 'text-gray-500 hover:text-indigo-500'
+                  }`}
+                >
+                  <Grid size={16} />
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => setViewMode('list')}
+                  className={`h-10 w-10 flex items-center justify-center rounded-lg transition-all duration-200 ${
+                    viewMode === 'list' 
+                      ? 'bg-indigo-500 text-white shadow-md' 
+                      : 'text-gray-500 hover:text-indigo-500'
+                  }`}
+                >
+                  <List size={16} />
+                </motion.button>
+              </div>
             </div>
             
             {/* 搜索结果提示 */}
@@ -356,7 +367,7 @@ export default function AgentsSection() {
                     </div>
 
                     <div className="flex flex-wrap gap-2">
-                      {agent.tags.map((tag) => (
+                      {agent.tags.map((tag: string) => (
                         <span
                           key={tag}
                           className="px-3 py-1 bg-indigo-50 text-indigo-600 text-sm rounded-full"
@@ -410,7 +421,7 @@ export default function AgentsSection() {
                     </div>
                     
                     <div className="flex flex-wrap gap-1">
-                      {agent.tags.slice(0, 3).map((tag) => (
+                      {agent.tags.map((tag: string) => (
                         <span
                           key={tag}
                           className="px-2 py-1 bg-indigo-50 text-indigo-600 text-xs rounded-full"
@@ -435,17 +446,25 @@ export default function AgentsSection() {
           viewport={{ once: true }}
           className="text-center mt-12"
         >
-          <p className="text-gray-500 mb-4">持续更新中，敬请期待更多智能体...</p>
+          <p className="text-gray-500 mb-4">更多智能体正在路上...</p>
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
+            onClick={() => setShowRequestModal(true)}
             className="btn-bounce inline-flex items-center px-6 py-3 border-2 border-indigo-600 text-indigo-600 rounded-xl font-medium hover:bg-indigo-600 hover:text-white transition-all duration-300"
           >
-            <Bot size={20} className="mr-2" />
+            <Sparkles size={20} className="mr-2" />
             定制智能体
           </motion.button>
         </motion.div>
       </div>
+      
+      {/* 定制申请模态框 */}
+      <CustomRequestModal
+        isOpen={showRequestModal}
+        onClose={() => setShowRequestModal(false)}
+        type="agent"
+      />
     </section>
   )
 } 
