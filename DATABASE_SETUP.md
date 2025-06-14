@@ -6,9 +6,44 @@
 - **Project URL**: https://mvrikhctrwowswcamkfj.supabase.co
 - **API Key**: 已在代码中配置
 
-## 2. 创建数据表
+## 2. 重要：修复RLS策略问题
 
-在Supabase控制台的SQL Editor中执行以下SQL语句来创建必要的数据表：
+**问题**: 当前数据库有行级安全策略（RLS）阻止数据插入
+**解决方案**: 在Supabase控制台执行以下SQL来修复
+
+### 方法1：禁用RLS（推荐用于开发环境）
+```sql
+ALTER TABLE agents DISABLE ROW LEVEL SECURITY;
+ALTER TABLE prompts DISABLE ROW LEVEL SECURITY;
+ALTER TABLE teaching_resources DISABLE ROW LEVEL SECURITY;
+ALTER TABLE custom_requests DISABLE ROW LEVEL SECURITY;
+```
+
+### 方法2：添加正确的RLS策略（生产环境推荐）
+```sql
+-- 删除现有策略
+DROP POLICY IF EXISTS "Allow all operations on agents" ON agents;
+DROP POLICY IF EXISTS "Allow all operations on prompts" ON prompts;
+DROP POLICY IF EXISTS "Allow all operations on teaching_resources" ON teaching_resources;
+DROP POLICY IF EXISTS "Allow all operations on custom_requests" ON custom_requests;
+
+-- 创建允许所有操作的策略
+CREATE POLICY "Enable all operations for agents" ON agents FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Enable all operations for prompts" ON prompts FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Enable all operations for teaching_resources" ON teaching_resources FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Enable all operations for custom_requests" ON custom_requests FOR ALL USING (true) WITH CHECK (true);
+```
+
+## 3. 创建数据表
+
+如果表结构不正确，请在Supabase控制台的SQL Editor中执行 `scripts/setup-database.sql` 中的SQL语句。
+
+## 4. 验证设置
+
+运行测试脚本验证数据库连接：
+```bash
+node scripts/test-database.js
+```
 
 ```sql
 -- 创建智能体表
