@@ -3,9 +3,10 @@
 import { motion } from 'framer-motion'
 import { Bot, ExternalLink, Download, Play, Filter, Grid, List, Search, X, Sparkles } from 'lucide-react'
 import Image from 'next/image'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import contentData from '../data/content.json'
 import CustomRequestModal from './CustomRequestModal'
+import { agentOperations } from '../lib/database'
 
 export default function AgentsSection() {
   const { agents: originalAgents } = contentData
@@ -14,14 +15,32 @@ export default function AgentsSection() {
   const [searchQuery, setSearchQuery] = useState<string>('')
   const [sortBy, setSortBy] = useState<'name' | 'downloads' | 'latest'>('latest')
   const [showRequestModal, setShowRequestModal] = useState(false)
+  const [mounted, setMounted] = useState(false)
+  const [customAgents, setCustomAgents] = useState<any[]>([])
   
-  // 合并原有智能体和自定义智能体
-  const getAgents = () => {
-    const customAgents = localStorage ? JSON.parse(localStorage.getItem('custom_agents') || '[]') : []
-    return [...originalAgents, ...customAgents]
+  // 处理客户端挂载
+  useEffect(() => {
+    setMounted(true)
+    loadCustomAgents()
+  }, [])
+
+  // 从数据库加载自定义智能体
+  const loadCustomAgents = async () => {
+    try {
+      const dbAgents = await agentOperations.getAll()
+      setCustomAgents(dbAgents)
+    } catch (error) {
+      console.error('加载自定义智能体失败:', error)
+      // 如果数据库加载失败，回退到localStorage
+      if (typeof window !== 'undefined' && localStorage) {
+        const localAgents = JSON.parse(localStorage.getItem('custom_agents') || '[]')
+        setCustomAgents(localAgents)
+      }
+    }
   }
   
-  const agents = getAgents()
+  // 合并原有智能体和自定义智能体
+  const agents = mounted ? [...originalAgents, ...customAgents] : originalAgents
   
   // 智能分类系统 - 基于功能而非技术标签
   const categories = [

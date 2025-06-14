@@ -34,7 +34,7 @@ export interface TeachingResource {
   type: string
   difficulty: string
   size: string
-  downloadUrl: string
+  download_url: string
   downloads: number
   created_at?: string
 }

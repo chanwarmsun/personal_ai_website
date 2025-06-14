@@ -5,19 +5,40 @@ import { FileText, Download, BookOpen, Award, TrendingUp } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import contentData from '../data/content.json'
 import CustomRequestModal from './CustomRequestModal'
+import { resourceOperations } from '../lib/database'
 
 export default function ResourcesSection() {
   const [allResources, setAllResources] = useState(contentData.teachingResources)
   const [showRequestModal, setShowRequestModal] = useState(false)
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
-    // 合并原始数据和自定义数据
-    const customResources = localStorage.getItem('custom_resources')
-    if (customResources) {
-      const parsed = JSON.parse(customResources)
-      setAllResources([...contentData.teachingResources, ...parsed])
-    }
+    setMounted(true)
+    loadCustomResources()
   }, [])
+
+  // 从数据库加载自定义教学资源
+  const loadCustomResources = async () => {
+    try {
+      const dbResources = await resourceOperations.getAll()
+      // 转换数据库字段名以匹配前端使用的字段名
+      const formattedResources = dbResources.map(resource => ({
+        ...resource,
+        downloadUrl: resource.download_url
+      }))
+      setAllResources([...contentData.teachingResources, ...formattedResources])
+    } catch (error) {
+      console.error('加载自定义教学资源失败:', error)
+      // 如果数据库加载失败，回退到localStorage
+      if (typeof window !== 'undefined' && localStorage) {
+        const customResources = localStorage.getItem('custom_resources')
+        if (customResources) {
+          const parsed = JSON.parse(customResources)
+          setAllResources([...contentData.teachingResources, ...parsed])
+        }
+      }
+    }
+  }
 
   const handleDownload = (resource: any) => {
     // 创建下载链接

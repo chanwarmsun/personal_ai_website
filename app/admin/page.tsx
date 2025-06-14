@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import FileUploadComponent from '../../components/FileUploadComponent'
+import { agentOperations, promptOperations, resourceOperations, requestOperations } from '../../lib/database'
 
 const modules = [
   { key: 'agents', name: '智能体', desc: '管理AI智能体，支持增删改查', icon: '🤖' },
@@ -67,46 +68,77 @@ export default function AdminPage() {
     loadRequests()
   }, [])
 
-  const loadAgents = () => {
-    const saved = localStorage.getItem('custom_agents')
-    if (saved) {
-      setAgents(JSON.parse(saved))
+  const loadAgents = async () => {
+    try {
+      const dbAgents = await agentOperations.getAll()
+      setAgents(dbAgents)
+    } catch (error) {
+      console.error('加载智能体失败:', error)
+      // 回退到localStorage
+      const saved = localStorage.getItem('custom_agents')
+      if (saved) {
+        setAgents(JSON.parse(saved))
+      }
     }
   }
 
-  const loadPrompts = () => {
-    const saved = localStorage.getItem('custom_prompts')
-    if (saved) {
-      setPrompts(JSON.parse(saved))
+  const loadPrompts = async () => {
+    try {
+      const dbPrompts = await promptOperations.getAll()
+      setPrompts(dbPrompts)
+    } catch (error) {
+      console.error('加载提示词失败:', error)
+      // 回退到localStorage
+      const saved = localStorage.getItem('custom_prompts')
+      if (saved) {
+        setPrompts(JSON.parse(saved))
+      }
     }
   }
 
-  const loadResources = () => {
-    const saved = localStorage.getItem('custom_resources')
-    if (saved) {
-      setResources(JSON.parse(saved))
+  const loadResources = async () => {
+    try {
+      const dbResources = await resourceOperations.getAll()
+      setResources(dbResources)
+    } catch (error) {
+      console.error('加载教学资源失败:', error)
+      // 回退到localStorage
+      const saved = localStorage.getItem('custom_resources')
+      if (saved) {
+        setResources(JSON.parse(saved))
+      }
     }
   }
 
-  const loadRequests = () => {
-    const saved = localStorage.getItem('custom_requests')
-    if (saved) {
-      setRequests(JSON.parse(saved))
+  const loadRequests = async () => {
+    try {
+      const dbRequests = await requestOperations.getAll()
+      setRequests(dbRequests)
+    } catch (error) {
+      console.error('加载定制申请失败:', error)
+      // 回退到localStorage
+      const saved = localStorage.getItem('custom_requests')
+      if (saved) {
+        setRequests(JSON.parse(saved))
+      }
     }
   }
 
-  const saveAgents = (newAgents: any[]) => {
+  const saveAgents = async (newAgents: any[]) => {
     setAgents(newAgents)
+    // 同时保存到localStorage作为备份
     localStorage.setItem('custom_agents', JSON.stringify(newAgents))
   }
 
-  const savePrompts = (newPrompts: any[]) => {
+  const savePrompts = async (newPrompts: any[]) => {
     setPrompts(newPrompts)
+    // 同时保存到localStorage作为备份
     localStorage.setItem('custom_prompts', JSON.stringify(newPrompts))
   }
 
-  const saveResources = (newResources: any[]) => {
+  const saveResources = async (newResources: any[]) => {
     setResources(newResources)
+    // 同时保存到localStorage作为备份
     localStorage.setItem('custom_resources', JSON.stringify(newResources))
   }
 
@@ -173,31 +205,67 @@ export default function AdminPage() {
     setForm((f: any) => ({ ...f, tags: f.tags.filter((t: string) => t !== tagToRemove) }))
   }
 
-  const handleSubmit = (e: any) => {
+  const handleSubmit = async (e: any) => {
     e.preventDefault()
     const requiredField = active === 'agents' ? 'name' : 'title'
     if (!form[requiredField]?.trim()) return
     
-    const newItem = {
-      ...form,
-      id: editingIndex !== null ? form.id : Date.now().toString()
+    try {
+      if (editingIndex !== null) {
+        // 更新现有项目
+        if (active === 'agents') {
+          const updated = await agentOperations.update(form.id, form)
+          if (updated) {
+            const newAgents = agents.map((item, i) => i === editingIndex ? updated : item)
+            await saveAgents(newAgents)
+          }
+        } else if (active === 'prompts') {
+          const updated = await promptOperations.update(form.id, form)
+          if (updated) {
+            const newPrompts = prompts.map((item, i) => i === editingIndex ? updated : item)
+            await savePrompts(newPrompts)
+          }
+        } else {
+          const updated = await resourceOperations.update(form.id, {
+            ...form,
+            download_url: form.downloadUrl
+          })
+          if (updated) {
+            const newResources = resources.map((item, i) => i === editingIndex ? updated : item)
+            await saveResources(newResources)
+          }
+        }
+        setEditingIndex(null)
+      } else {
+        // 创建新项目
+        if (active === 'agents') {
+          const created = await agentOperations.create(form)
+          if (created) {
+            await saveAgents([...agents, created])
+          }
+        } else if (active === 'prompts') {
+          const created = await promptOperations.create(form)
+          if (created) {
+            await savePrompts([...prompts, created])
+          }
+        } else {
+          const created = await resourceOperations.create({
+            ...form,
+            download_url: form.downloadUrl
+          })
+          if (created) {
+            await saveResources([...resources, created])
+          }
+        }
+      }
+      
+      setForm(getCurrentDefault())
+      setTagInput('')
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    } catch (error) {
+      console.error('保存失败:', error)
+      alert('保存失败，请重试')
     }
-
-    const currentData = getCurrentData()
-    if (editingIndex !== null) {
-      const updated = currentData.map((item, i) => i === editingIndex ? newItem : item)
-      if (active === 'agents') saveAgents(updated)
-      else if (active === 'prompts') savePrompts(updated)
-      else saveResources(updated)
-      setEditingIndex(null)
-    } else {
-      if (active === 'agents') saveAgents([...agents, newItem])
-      else if (active === 'prompts') savePrompts([...prompts, newItem])
-      else saveResources([...resources, newItem])
-    }
-    setForm(getCurrentDefault())
-    setTagInput('')
-    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   const handleEdit = (idx: number) => {
@@ -205,17 +273,41 @@ export default function AdminPage() {
     setForm(getCurrentData()[idx])
   }
 
-  const handleDelete = (idx: number) => {
+  const handleDelete = async (idx: number) => {
     const itemName = active === 'agents' ? '智能体' : active === 'prompts' ? '提示词' : '教学资源'
     if (window.confirm(`确定要删除该${itemName}吗？`)) {
-      const currentData = getCurrentData()
-      const updated = currentData.filter((_, i) => i !== idx)
-      if (active === 'agents') saveAgents(updated)
-      else if (active === 'prompts') savePrompts(updated)
-      else saveResources(updated)
-      setEditingIndex(null)
-      setForm(getCurrentDefault())
-      if (fileInputRef.current) fileInputRef.current.value = ''
+      try {
+        const currentData = getCurrentData()
+        const item = currentData[idx]
+        
+        // 从数据库删除
+        if (active === 'agents') {
+          const success = await agentOperations.delete(item.id)
+          if (success) {
+            const updated = currentData.filter((_, i) => i !== idx)
+            await saveAgents(updated)
+          }
+        } else if (active === 'prompts') {
+          const success = await promptOperations.delete(item.id)
+          if (success) {
+            const updated = currentData.filter((_, i) => i !== idx)
+            await savePrompts(updated)
+          }
+        } else {
+          const success = await resourceOperations.delete(item.id)
+          if (success) {
+            const updated = currentData.filter((_, i) => i !== idx)
+            await saveResources(updated)
+          }
+        }
+        
+        setEditingIndex(null)
+        setForm(getCurrentDefault())
+        if (fileInputRef.current) fileInputRef.current.value = ''
+      } catch (error) {
+        console.error('删除失败:', error)
+        alert('删除失败，请重试')
+      }
     }
   }
 
