@@ -11,7 +11,7 @@ export default function AdminLoginPage() {
   const handleSubmit = (e: any) => {
     e.preventDefault()
     // 简单验证（生产环境建议使用更安全的方式）
-    if (form.username === 'admin' && form.password === 'admin123') {
+    if (form.username === 'chanwarmsun' && form.password === 'Cws468975') {
       localStorage.setItem('admin_token', 'authenticated')
       router.push('/admin')
     } else {
@@ -48,10 +48,6 @@ export default function AdminLoginPage() {
           <button type="submit" className="w-full py-2 bg-gradient-to-r from-indigo-500 to-violet-500 text-white font-semibold rounded-lg shadow hover:shadow-lg transition-all duration-200">登录</button>
         </form>
         <a href="/" className="block text-center mt-6 text-indigo-500 hover:underline">返回首页</a>
-        <div className="mt-6 p-3 bg-gray-50 rounded-lg text-xs text-gray-500">
-          测试账号：admin<br/>
-          测试密码：admin123
-        </div>
       </div>
     </div>
   )
