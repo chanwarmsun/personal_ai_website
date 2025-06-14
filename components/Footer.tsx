@@ -76,22 +76,7 @@ export default function Footer() {
             <div className="space-y-3">
               <div className="flex items-center space-x-3">
                 <Mail size={16} className="text-gray-400" />
-                <span className="text-gray-300 text-sm">hello@peanut.ai</span>
-              </div>
-              <div className="flex space-x-3">
-                {socialLinks.map((link) => (
-                  <motion.a
-                    key={link.label}
-                    href={link.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.95 }}
-                    className="p-2 bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors duration-200"
-                  >
-                    <link.icon size={16} className="text-gray-300" />
-                  </motion.a>
-                ))}
+                <span className="text-gray-300 text-sm">527154172@qq.com</span>
               </div>
             </div>
           </motion.div>
