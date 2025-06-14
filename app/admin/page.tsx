@@ -13,7 +13,6 @@ const modules = [
 ]
 
 const defaultAgent = { 
-  id: '', 
   name: '', 
   description: '', 
   image: '', 
@@ -23,7 +22,6 @@ const defaultAgent = {
 }
 
 const defaultPrompt = {
-  id: '',
   title: '',
   description: '',
   content: '',
@@ -32,7 +30,6 @@ const defaultPrompt = {
 }
 
 const defaultResource = {
-  id: '',
   title: '',
   description: '',
   type: '课件',
@@ -70,8 +67,11 @@ export default function AdminPage() {
 
   const loadAgents = async () => {
     try {
+      console.log('🔍 开始加载智能体数据...')
       const dbAgents = await agentOperations.getAll()
+      console.log('📊 从数据库获取的智能体:', dbAgents)
       setAgents(dbAgents)
+      console.log('✅ 智能体状态已更新')
     } catch (error) {
       console.error('加载智能体失败:', error)
       // 回退到localStorage
@@ -210,23 +210,21 @@ export default function AdminPage() {
     const requiredField = active === 'agents' ? 'name' : 'title'
     if (!form[requiredField]?.trim()) return
     
+    console.log('🚀 开始提交表单:', { active, form, editingIndex })
+    
     try {
       if (editingIndex !== null) {
         // 更新现有项目
         if (active === 'agents') {
           const updated = await agentOperations.update(form.id, form)
           if (updated) {
-            const newAgents = agents.map((item, i) => i === editingIndex ? updated : item)
-            await saveAgents(newAgents)
-            // 重新加载数据以确保同步
+            // 直接重新加载数据，不需要手动更新状态
             await loadAgents()
           }
         } else if (active === 'prompts') {
           const updated = await promptOperations.update(form.id, form)
           if (updated) {
-            const newPrompts = prompts.map((item, i) => i === editingIndex ? updated : item)
-            await savePrompts(newPrompts)
-            // 重新加载数据以确保同步
+            // 直接重新加载数据，不需要手动更新状态
             await loadPrompts()
           }
         } else {
@@ -235,9 +233,7 @@ export default function AdminPage() {
             download_url: form.downloadUrl
           })
           if (updated) {
-            const newResources = resources.map((item, i) => i === editingIndex ? updated : item)
-            await saveResources(newResources)
-            // 重新加载数据以确保同步
+            // 直接重新加载数据，不需要手动更新状态
             await loadResources()
           }
         }
@@ -245,28 +241,44 @@ export default function AdminPage() {
       } else {
         // 创建新项目
         if (active === 'agents') {
-          const created = await agentOperations.create(form)
+          console.log('📝 创建智能体:', form)
+          // 确保不包含id字段
+          const { id, ...agentData } = form
+          console.log('📝 清理后的数据:', agentData)
+          const created = await agentOperations.create(agentData)
+          console.log('✅ 创建结果:', created)
           if (created) {
-            await saveAgents([...agents, created])
-            // 重新加载数据以确保同步
+            // 直接重新加载数据，不需要手动更新状态
             await loadAgents()
+            console.log('🔄 重新加载智能体完成')
           }
         } else if (active === 'prompts') {
-          const created = await promptOperations.create(form)
+          console.log('📝 创建提示词:', form)
+          // 确保不包含id字段
+          const { id, ...promptData } = form
+          console.log('📝 清理后的数据:', promptData)
+          const created = await promptOperations.create(promptData)
+          console.log('✅ 创建结果:', created)
           if (created) {
-            await savePrompts([...prompts, created])
-            // 重新加载数据以确保同步
+            // 直接重新加载数据，不需要手动更新状态
             await loadPrompts()
+            console.log('🔄 重新加载提示词完成')
           }
         } else {
-          const created = await resourceOperations.create({
-            ...form,
-            download_url: form.downloadUrl
-          })
+          console.log('📝 创建教学资源:', form)
+          // 确保不包含id字段，并处理字段映射
+          const { id, downloadUrl, ...resourceData } = form
+          const finalData = {
+            ...resourceData,
+            download_url: downloadUrl
+          }
+          console.log('📝 清理后的数据:', finalData)
+          const created = await resourceOperations.create(finalData)
+          console.log('✅ 创建结果:', created)
           if (created) {
-            await saveResources([...resources, created])
-            // 重新加载数据以确保同步
+            // 直接重新加载数据，不需要手动更新状态
             await loadResources()
+            console.log('🔄 重新加载教学资源完成')
           }
         }
       }
@@ -296,25 +308,19 @@ export default function AdminPage() {
         if (active === 'agents') {
           const success = await agentOperations.delete(item.id)
           if (success) {
-            const updated = currentData.filter((_, i) => i !== idx)
-            await saveAgents(updated)
-            // 重新加载数据以确保同步
+            // 直接重新加载数据，不需要手动更新状态
             await loadAgents()
           }
         } else if (active === 'prompts') {
           const success = await promptOperations.delete(item.id)
           if (success) {
-            const updated = currentData.filter((_, i) => i !== idx)
-            await savePrompts(updated)
-            // 重新加载数据以确保同步
+            // 直接重新加载数据，不需要手动更新状态
             await loadPrompts()
           }
         } else {
           const success = await resourceOperations.delete(item.id)
           if (success) {
-            const updated = currentData.filter((_, i) => i !== idx)
-            await saveResources(updated)
-            // 重新加载数据以确保同步
+            // 直接重新加载数据，不需要手动更新状态
             await loadResources()
           }
         }
