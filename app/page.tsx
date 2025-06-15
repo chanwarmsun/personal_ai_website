@@ -2,6 +2,7 @@
 
 import Header from '../components/Header'
 import PersonalInfo from '../components/PersonalInfo'
+import CarouselSection from '../components/CarouselSection'
 import AgentsSection from '../components/AgentsSection'
 import PromptsSection from '../components/PromptsSection'
 import ResourcesSection from '../components/ResourcesSection'
@@ -12,6 +13,7 @@ export default function Home() {
     <main className="min-h-screen">
       <Header />
       <PersonalInfo />
+      <CarouselSection />
       <AgentsSection />
       <PromptsSection />
       <ResourcesSection />

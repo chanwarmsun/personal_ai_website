@@ -2,13 +2,17 @@
 
 import React, { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { supabase } from '../../lib/supabase'
 import FileUploadComponent from '../../components/FileUploadComponent'
 import { agentOperations, promptOperations, resourceOperations, requestOperations } from '../../lib/database'
+import { carouselOperations, defaultContentOperations } from '../../lib/carousel-operations'
 
 const modules = [
+  { key: 'carousel', name: '轮播管理', desc: '管理首页轮播图片，支持增删改查', icon: '🎠' },
   { key: 'agents', name: '智能体', desc: '管理AI智能体，支持增删改查', icon: '🤖' },
   { key: 'prompts', name: '提示词', desc: '管理AI提示词，支持增删改查', icon: '💡' },
   { key: 'resources', name: 'AI教学资源', desc: '管理教学资源，支持增删改查', icon: '📚' },
+  { key: 'default-content', name: '默认内容', desc: '编辑网站默认内容（智能体、提示词、资源）', icon: '📋' },
   { key: 'requests', name: '定制申请', desc: '查看用户定制申请，支持状态管理', icon: '📝' },
 ]
 
@@ -39,16 +43,27 @@ const defaultResource = {
   downloads: 0
 }
 
+const defaultCarouselItem = {
+  title: '',
+  image: '',
+  description: ''
+}
+
 export default function AdminPage() {
-  const [active, setActive] = useState('agents')
+  const [active, setActive] = useState('carousel')
   const [agents, setAgents] = useState<any[]>([])
   const [prompts, setPrompts] = useState<any[]>([])
   const [resources, setResources] = useState<any[]>([])
   const [requests, setRequests] = useState<any[]>([])
+  const [carousel, setCarousel] = useState<any[]>([])
+  const [defaultContent, setDefaultContent] = useState<any>({})
   const [editingIndex, setEditingIndex] = useState<number | null>(null)
-  const [form, setForm] = useState<any>(defaultAgent)
+  const [form, setForm] = useState<any>(defaultCarouselItem)
   const [tagInput, setTagInput] = useState('')
+  const [editingDefaultItem, setEditingDefaultItem] = useState<{type: string, index: number} | null>(null)
+  const [defaultEditForm, setDefaultEditForm] = useState<any>({})
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const defaultImageInputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
 
   // 检查登录状态
@@ -59,10 +74,12 @@ export default function AdminPage() {
       return
     }
     // 加载数据
+    loadCarousel()
     loadAgents()
     loadPrompts()
     loadResources()
     loadRequests()
+    loadDefaultContent()
   }, [])
 
   const loadAgents = async () => {
@@ -124,6 +141,51 @@ export default function AdminPage() {
     }
   }
 
+  const loadCarousel = async () => {
+    try {
+      const carouselData = await carouselOperations.getAll()
+      const formattedData = carouselData.map(item => ({
+        id: item.id,
+        title: item.title,
+        image: item.image,
+        description: item.description
+      }))
+      setCarousel(formattedData)
+    } catch (error) {
+      console.error('加载轮播数据失败:', error)
+      // 回退到localStorage
+      const saved = localStorage.getItem('custom_carousel')
+      if (saved) {
+        setCarousel(JSON.parse(saved))
+      }
+    }
+  }
+
+  const loadDefaultContent = async () => {
+    try {
+      // 首先尝试从数据库加载
+      const dbContent = await defaultContentOperations.get('website_default')
+      if (dbContent) {
+        setDefaultContent(dbContent)
+        return
+      }
+      
+      // 如果数据库没有，从文件加载
+      const response = await fetch('/data/content.json')
+      const data = await response.json()
+      setDefaultContent(data)
+    } catch (error) {
+      console.error('加载默认内容失败:', error)
+      // 如果无法加载，使用静态导入的备份
+      try {
+        const contentData = await import('../../data/content.json')
+        setDefaultContent(contentData.default)
+      } catch (importError) {
+        console.error('导入备份内容失败:', importError)
+      }
+    }
+  }
+
   const saveAgents = async (newAgents: any[]) => {
     setAgents(newAgents)
     // 同时保存到localStorage作为备份
@@ -140,6 +202,35 @@ export default function AdminPage() {
     setResources(newResources)
     // 同时保存到localStorage作为备份
     localStorage.setItem('custom_resources', JSON.stringify(newResources))
+  }
+
+  const saveCarousel = async (newCarousel: any[]) => {
+    setCarousel(newCarousel)
+    // 同时保存到localStorage作为备份
+    localStorage.setItem('custom_carousel', JSON.stringify(newCarousel))
+    
+    // 保存到数据库
+    try {
+      // 这里可以添加更复杂的同步逻辑
+      console.log('轮播数据已保存到本地存储，数据库同步功能待实现')
+    } catch (error) {
+      console.error('保存轮播数据失败:', error)
+    }
+  }
+
+  const saveDefaultContent = async (newContent: any) => {
+    setDefaultContent(newContent)
+    try {
+      // 保存到数据库
+      await defaultContentOperations.save('website_default', newContent)
+      // 同时保存到localStorage作为备份
+      localStorage.setItem('default_content_backup', JSON.stringify(newContent))
+      console.log('默认内容已保存到数据库')
+    } catch (error) {
+      console.error('保存默认内容失败:', error)
+      // 至少保存到localStorage
+      localStorage.setItem('default_content_backup', JSON.stringify(newContent))
+    }
   }
 
   const updateRequestStatus = (index: number, status: string) => {
@@ -159,21 +250,31 @@ export default function AdminPage() {
   }
 
   const getCurrentData = () => {
+    if (active === 'carousel') return carousel
     if (active === 'agents') return agents
     if (active === 'prompts') return prompts
-    return resources
+    if (active === 'resources') return resources
+    if (active === 'default-content') return []
+    return []
   }
 
   const getCurrentDefault = () => {
+    if (active === 'carousel') return defaultCarouselItem
     if (active === 'agents') return defaultAgent
     if (active === 'prompts') return defaultPrompt
-    return defaultResource
+    if (active === 'resources') return defaultResource
+    return defaultCarouselItem  // 默认返回轮播项
   }
 
   const handleSwitchModule = (moduleKey: string) => {
     setActive(moduleKey)
     setEditingIndex(null)
-    setForm(moduleKey === 'agents' ? defaultAgent : moduleKey === 'prompts' ? defaultPrompt : defaultResource)
+    let defaultForm: any = getCurrentDefault()
+    // 确保tags字段存在
+    if (moduleKey === 'agents' || moduleKey === 'prompts') {
+      defaultForm = { ...defaultForm, tags: defaultForm.tags || [] }
+    }
+    setForm(defaultForm)
     setTagInput('')
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
@@ -195,19 +296,25 @@ export default function AdminPage() {
   }
 
   const addTag = () => {
-    if (tagInput.trim() && !form.tags.includes(tagInput.trim())) {
-      setForm((f: any) => ({ ...f, tags: [...f.tags, tagInput.trim()] }))
+    if (tagInput.trim() && !(form.tags || []).includes(tagInput.trim())) {
+      setForm((f: any) => ({ ...f, tags: [...(f.tags || []), tagInput.trim()] }))
       setTagInput('')
     }
   }
 
   const removeTag = (tagToRemove: string) => {
-    setForm((f: any) => ({ ...f, tags: f.tags.filter((t: string) => t !== tagToRemove) }))
+    setForm((f: any) => ({ ...f, tags: (f.tags || []).filter((t: string) => t !== tagToRemove) }))
   }
 
   const handleSubmit = async (e: any) => {
     e.preventDefault()
-    const requiredField = active === 'agents' ? 'name' : 'title'
+    
+    // 验证必填字段
+    let requiredField = ''
+    if (active === 'carousel') requiredField = 'title'
+    else if (active === 'agents') requiredField = 'name'
+    else requiredField = 'title'
+    
     if (!form[requiredField]?.trim()) return
     
     console.log('🚀 开始提交表单:', { active, form, editingIndex })
@@ -215,7 +322,16 @@ export default function AdminPage() {
     try {
       if (editingIndex !== null) {
         // 更新现有项目
-        if (active === 'agents') {
+        if (active === 'carousel') {
+          const updated = await carouselOperations.update(form.id, {
+            title: form.title,
+            image: form.image,
+            description: form.description
+          })
+          if (updated) {
+            await loadCarousel()
+          }
+        } else if (active === 'agents') {
           const updated = await agentOperations.update(form.id, form)
           if (updated) {
             // 直接重新加载数据，不需要手动更新状态
@@ -240,7 +356,17 @@ export default function AdminPage() {
         setEditingIndex(null)
       } else {
         // 创建新项目
-        if (active === 'agents') {
+        if (active === 'carousel') {
+          const created = await carouselOperations.create({
+            title: form.title,
+            image: form.image,
+            description: form.description,
+            order_index: carousel.length
+          })
+          if (created) {
+            await loadCarousel()
+          }
+        } else if (active === 'agents') {
           console.log('📝 创建智能体:', form)
           // 确保不包含id字段
           const { id, ...agentData } = form
@@ -298,14 +424,25 @@ export default function AdminPage() {
   }
 
   const handleDelete = async (idx: number) => {
-    const itemName = active === 'agents' ? '智能体' : active === 'prompts' ? '提示词' : '教学资源'
+    let itemName = ''
+    if (active === 'carousel') itemName = '轮播图片'
+    else if (active === 'agents') itemName = '智能体'
+    else if (active === 'prompts') itemName = '提示词'
+    else itemName = '教学资源'
+    
     if (window.confirm(`确定要删除该${itemName}吗？`)) {
       try {
         const currentData = getCurrentData()
         const item = currentData[idx]
         
         // 从数据库删除
-        if (active === 'agents') {
+              if (active === 'carousel') {
+        const item = carousel[idx]
+        const success = await carouselOperations.delete(item.id)
+        if (success) {
+          await loadCarousel()
+        }
+        } else if (active === 'agents') {
           const success = await agentOperations.delete(item.id)
           if (success) {
             // 直接重新加载数据，不需要手动更新状态
@@ -347,6 +484,577 @@ export default function AdminPage() {
     router.push('/')
   }
 
+  const handleDefaultContentEdit = (type: string, index: number, item: any) => {
+    setEditingDefaultItem({ type, index })
+    setDefaultEditForm({ ...item })
+  }
+
+  const handleDefaultContentSave = async () => {
+    if (!editingDefaultItem) return
+    
+    const { type, index } = editingDefaultItem
+    const updatedContent = { ...defaultContent }
+    
+    if (type === 'agents') {
+      updatedContent.agents[index] = { ...defaultEditForm }
+    } else if (type === 'prompts') {
+      updatedContent.prompts[index] = { ...defaultEditForm }
+    } else if (type === 'teachingResources') {
+      updatedContent.teachingResources[index] = { ...defaultEditForm }
+    }
+    
+    await saveDefaultContent(updatedContent)
+    setEditingDefaultItem(null)
+    setDefaultEditForm({})
+  }
+
+  const handleDefaultContentCancel = () => {
+    setEditingDefaultItem(null)
+    setDefaultEditForm({})
+  }
+
+  const handleDefaultFormChange = (e: any) => {
+    const { name, value } = e.target
+    setDefaultEditForm((prev: any) => ({ ...prev, [name]: value }))
+  }
+
+  const handleDefaultImageUpload = (e: any) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        setDefaultEditForm((prev: any) => ({ ...prev, image: event.target?.result as string }))
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const addDefaultTag = (tagValue: string) => {
+    if (tagValue.trim() && !defaultEditForm.tags?.includes(tagValue.trim())) {
+      setDefaultEditForm((prev: any) => ({
+        ...prev,
+        tags: [...(prev.tags || []), tagValue.trim()]
+      }))
+    }
+  }
+
+  const removeDefaultTag = (tagToRemove: string) => {
+    setDefaultEditForm((prev: any) => ({
+      ...prev,
+      tags: (prev.tags || []).filter((tag: string) => tag !== tagToRemove)
+    }))
+  }
+
+  const renderCarouselModule = () => (
+    <div>
+      <h2 className="text-xl font-bold mb-4 text-indigo-600">轮播管理</h2>
+      <p className="text-sm text-gray-500 mb-6">管理首页轮播图片，新增的图片将显示在首页轮播中</p>
+      
+      {/* 图片尺寸提示 */}
+      <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+        <div className="flex items-start gap-2">
+          <span className="text-blue-600">💡</span>
+          <div className="text-sm text-blue-800">
+            <strong>图片尺寸建议：</strong>
+            <ul className="mt-1 list-disc list-inside space-y-1">
+              <li>推荐尺寸：800x400 像素（2:1 比例）</li>
+              <li>最小尺寸：600x300 像素</li>
+              <li>文件格式：JPG、PNG、WebP</li>
+              <li>文件大小：建议不超过 2MB</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      
+      {/* 列表 */}
+      <div className="mb-8">
+        {carousel.length === 0 && <div className="text-gray-400 text-center py-8">暂无自定义轮播图片</div>}
+        {carousel.map((item, i) => (
+          <div key={i} className="flex items-center gap-4 border-b py-3">
+            <img src={item.image || '/placeholder.png'} alt="轮播图" className="w-20 h-12 rounded-lg object-cover bg-gray-100 border" />
+            <div className="flex-1 min-w-0">
+              <div className="font-bold text-indigo-700 truncate">{item.title}</div>
+              <div className="text-gray-500 text-sm truncate">{item.description}</div>
+            </div>
+            <button onClick={() => handleEdit(i)} className="px-3 py-1 text-xs rounded bg-indigo-50 text-indigo-600 hover:bg-indigo-100 mr-2">编辑</button>
+            <button onClick={() => handleDelete(i)} className="px-3 py-1 text-xs rounded bg-red-50 text-red-600 hover:bg-red-100">删除</button>
+          </div>
+        ))}
+      </div>
+      
+      {/* 表单 */}
+      <form onSubmit={handleSubmit} className="space-y-4 max-w-xl mx-auto">
+        <div className="flex gap-4 items-start">
+          <div>
+            <label className="block text-sm font-medium mb-1">图片</label>
+            <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImage} className="block w-24 text-xs" />
+            {form.image && <img src={form.image} alt="预览" className="w-20 h-12 rounded-lg mt-2 object-cover border" />}
+          </div>
+          <div className="flex-1 space-y-2">
+            <input 
+              name="title" 
+              value={form.title} 
+              onChange={handleChange} 
+              placeholder="轮播标题" 
+              className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-indigo-200" 
+            />
+            <input 
+              name="image" 
+              value={form.image} 
+              onChange={handleChange} 
+              placeholder="图片URL" 
+              className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-indigo-200" 
+            />
+          </div>
+        </div>
+        <textarea 
+          name="description" 
+          value={form.description} 
+          onChange={handleChange} 
+          placeholder="图片描述" 
+          className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-indigo-200" 
+          rows={3} 
+        />
+        <div className="flex gap-3 justify-end">
+          {editingIndex !== null && <button type="button" onClick={handleCancel} className="px-4 py-2 rounded bg-gray-100 text-gray-500 hover:bg-gray-200">取消</button>}
+          <button type="submit" className="px-4 py-2 rounded bg-gradient-to-r from-indigo-500 to-violet-500 text-white font-semibold shadow hover:shadow-lg transition-all duration-200">
+            {editingIndex !== null ? '保存修改' : '新增轮播'}
+          </button>
+        </div>
+      </form>
+    </div>
+  )
+
+  const renderDefaultContentModule = () => (
+    <div>
+      <h2 className="text-xl font-bold mb-4 text-indigo-600">默认内容管理</h2>
+      <p className="text-sm text-gray-500 mb-6">编辑网站默认内容，这些修改将直接影响首页显示</p>
+      
+      <div className="space-y-8">
+        {/* 默认智能体 */}
+        <div>
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">默认智能体</h3>
+          <div className="space-y-4">
+            {defaultContent?.agents?.map((agent: any, i: number) => (
+              <div key={i} className="border rounded-lg bg-gray-50 overflow-hidden">
+                {editingDefaultItem?.type === 'agents' && editingDefaultItem?.index === i ? (
+                  // 编辑模式
+                  <div className="p-6 bg-white">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">智能体名称</label>
+                          <input
+                            name="name"
+                            value={defaultEditForm.name || ''}
+                            onChange={handleDefaultFormChange}
+                            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-200"
+                            placeholder="输入智能体名称"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">描述</label>
+                          <textarea
+                            name="description"
+                            value={defaultEditForm.description || ''}
+                            onChange={handleDefaultFormChange}
+                            rows={3}
+                            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-200"
+                            placeholder="输入智能体描述"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">链接地址</label>
+                          <input
+                            name="url"
+                            value={defaultEditForm.url || ''}
+                            onChange={handleDefaultFormChange}
+                            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-200"
+                            placeholder="输入链接地址"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">类型</label>
+                          <select
+                            name="type"
+                            value={defaultEditForm.type || 'chat'}
+                            onChange={handleDefaultFormChange}
+                            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-200"
+                          >
+                            <option value="chat">对话类型</option>
+                            <option value="download">下载类型</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">封面图片</label>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            ref={defaultImageInputRef}
+                            onChange={handleDefaultImageUpload}
+                            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-200"
+                          />
+                          {defaultEditForm.image && (
+                            <div className="mt-2">
+                              <img src={defaultEditForm.image} alt="预览" className="w-24 h-24 rounded-lg object-cover border" />
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">标签</label>
+                          <div className="flex gap-2 mb-2">
+                            <input
+                              type="text"
+                              placeholder="输入标签"
+                              className="flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-200"
+                              onKeyPress={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault()
+                                  addDefaultTag((e.target as HTMLInputElement).value)
+                                  ;(e.target as HTMLInputElement).value = ''
+                                }
+                              }}
+                            />
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                const input = (e.target as HTMLElement).parentElement?.querySelector('input') as HTMLInputElement
+                                if (input) {
+                                  addDefaultTag(input.value)
+                                  input.value = ''
+                                }
+                              }}
+                              className="px-4 py-2 bg-indigo-100 text-indigo-600 rounded-lg hover:bg-indigo-200"
+                            >
+                              添加
+                            </button>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {(defaultEditForm.tags || []).map((tag: string) => (
+                              <span key={tag} className="px-3 py-1 bg-indigo-100 text-indigo-600 text-sm rounded-full flex items-center gap-2">
+                                {tag}
+                                <button
+                                  type="button"
+                                  onClick={() => removeDefaultTag(tag)}
+                                  className="text-red-500 hover:text-red-700"
+                                >
+                                  ×
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex gap-3 justify-end mt-6">
+                      <button
+                        onClick={handleDefaultContentCancel}
+                        className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200"
+                      >
+                        取消
+                      </button>
+                      <button
+                        onClick={handleDefaultContentSave}
+                        className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                      >
+                        保存修改
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  // 显示模式
+                  <div className="flex items-center gap-4 p-4">
+                    <img src={agent.image} alt="智能体" className="w-16 h-16 rounded-lg object-cover" />
+                    <div className="flex-1">
+                      <div className="font-bold text-gray-800">{agent.name}</div>
+                      <div className="text-gray-600 text-sm">{agent.description}</div>
+                      <div className="flex gap-1 mt-1">
+                        {(agent.tags || []).map((tag: string) => (
+                          <span key={tag} className="px-2 py-0.5 bg-indigo-100 text-indigo-600 text-xs rounded">{tag}</span>
+                        ))}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleDefaultContentEdit('agents', i, agent)}
+                      className="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100"
+                    >
+                      编辑
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* 默认提示词 */}
+        <div>
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">默认提示词</h3>
+          <div className="space-y-4">
+            {defaultContent?.prompts?.map((promptItem: any, i: number) => (
+              <div key={i} className="border rounded-lg bg-gray-50 overflow-hidden">
+                {editingDefaultItem?.type === 'prompts' && editingDefaultItem?.index === i ? (
+                  // 编辑模式
+                  <div className="p-6 bg-white">
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">提示词标题</label>
+                        <input
+                          name="title"
+                          value={defaultEditForm.title || ''}
+                          onChange={handleDefaultFormChange}
+                          className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-200"
+                          placeholder="输入提示词标题"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">描述</label>
+                        <textarea
+                          name="description"
+                          value={defaultEditForm.description || ''}
+                          onChange={handleDefaultFormChange}
+                          rows={2}
+                          className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-200"
+                          placeholder="输入提示词描述"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">提示词内容</label>
+                        <textarea
+                          name="content"
+                          value={defaultEditForm.content || ''}
+                          onChange={handleDefaultFormChange}
+                          rows={4}
+                          className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-200"
+                          placeholder="输入提示词内容"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">标签</label>
+                        <div className="flex gap-2 mb-2">
+                          <input
+                            type="text"
+                            placeholder="输入标签"
+                            className="flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-200"
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault()
+                                addDefaultTag((e.target as HTMLInputElement).value)
+                                ;(e.target as HTMLInputElement).value = ''
+                              }
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              const input = (e.target as HTMLElement).parentElement?.querySelector('input') as HTMLInputElement
+                              if (input) {
+                                addDefaultTag(input.value)
+                                input.value = ''
+                              }
+                            }}
+                            className="px-4 py-2 bg-indigo-100 text-indigo-600 rounded-lg hover:bg-indigo-200"
+                          >
+                            添加
+                          </button>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {(defaultEditForm.tags || []).map((tag: string) => (
+                            <span key={tag} className="px-3 py-1 bg-green-100 text-green-600 text-sm rounded-full flex items-center gap-2">
+                              {tag}
+                              <button
+                                type="button"
+                                onClick={() => removeDefaultTag(tag)}
+                                className="text-red-500 hover:text-red-700"
+                              >
+                                ×
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex gap-3 justify-end mt-6">
+                      <button
+                        onClick={handleDefaultContentCancel}
+                        className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200"
+                      >
+                        取消
+                      </button>
+                      <button
+                        onClick={handleDefaultContentSave}
+                        className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                      >
+                        保存修改
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  // 显示模式
+                  <div className="p-4">
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="font-bold text-gray-800">{promptItem.title}</div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-500">下载: {promptItem.downloads}</span>
+                        <button
+                          onClick={() => handleDefaultContentEdit('prompts', i, promptItem)}
+                          className="px-3 py-1 bg-blue-50 text-blue-600 rounded hover:bg-blue-100"
+                        >
+                          编辑
+                        </button>
+                      </div>
+                    </div>
+                    <div className="text-gray-600 text-sm mb-2">{promptItem.description}</div>
+                    <div className="flex gap-1">
+                      {(promptItem.tags || []).map((tag: string) => (
+                        <span key={tag} className="px-2 py-0.5 bg-green-100 text-green-600 text-xs rounded">{tag}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* 默认教学资源 */}
+        <div>
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">默认教学资源</h3>
+          <div className="space-y-4">
+            {defaultContent?.teachingResources?.map((resource: any, i: number) => (
+              <div key={i} className="border rounded-lg bg-gray-50 overflow-hidden">
+                {editingDefaultItem?.type === 'teachingResources' && editingDefaultItem?.index === i ? (
+                  // 编辑模式
+                  <div className="p-6 bg-white">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">资源标题</label>
+                          <input
+                            name="title"
+                            value={defaultEditForm.title || ''}
+                            onChange={handleDefaultFormChange}
+                            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-200"
+                            placeholder="输入资源标题"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">描述</label>
+                          <textarea
+                            name="description"
+                            value={defaultEditForm.description || ''}
+                            onChange={handleDefaultFormChange}
+                            rows={3}
+                            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-200"
+                            placeholder="输入资源描述"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">下载链接</label>
+                          <input
+                            name="downloadUrl"
+                            value={defaultEditForm.downloadUrl || ''}
+                            onChange={handleDefaultFormChange}
+                            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-200"
+                            placeholder="输入下载链接"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">资源类型</label>
+                          <select
+                            name="type"
+                            value={defaultEditForm.type || '课件'}
+                            onChange={handleDefaultFormChange}
+                            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-200"
+                          >
+                            <option value="课件">课件</option>
+                            <option value="教案">教案</option>
+                            <option value="视频">视频</option>
+                            <option value="文档">文档</option>
+                            <option value="工具">工具</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">适用对象</label>
+                          <select
+                            name="difficulty"
+                            value={defaultEditForm.difficulty || '教师用'}
+                            onChange={handleDefaultFormChange}
+                            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-200"
+                          >
+                            <option value="教师用">教师用</option>
+                            <option value="学生用">学生用</option>
+                            <option value="通用">通用</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">文件大小</label>
+                          <input
+                            name="size"
+                            value={defaultEditForm.size || ''}
+                            onChange={handleDefaultFormChange}
+                            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-200"
+                            placeholder="例如: 2.5MB"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex gap-3 justify-end mt-6">
+                      <button
+                        onClick={handleDefaultContentCancel}
+                        className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200"
+                      >
+                        取消
+                      </button>
+                      <button
+                        onClick={handleDefaultContentSave}
+                        className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                      >
+                        保存修改
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  // 显示模式
+                  <div className="p-4">
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="font-bold text-gray-800">{resource.title}</div>
+                      <div className="flex items-center gap-2">
+                        <span className="px-2 py-1 text-xs bg-purple-100 text-purple-600 rounded">{resource.type}</span>
+                        <span className="text-sm text-gray-500">下载: {resource.downloads}</span>
+                        <button
+                          onClick={() => handleDefaultContentEdit('teachingResources', i, resource)}
+                          className="px-3 py-1 bg-blue-50 text-blue-600 rounded hover:bg-blue-100"
+                        >
+                          编辑
+                        </button>
+                      </div>
+                    </div>
+                    <div className="text-gray-600 text-sm">{resource.description}</div>
+                    <div className="text-xs text-gray-500 mt-1">大小: {resource.size}</div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      
+      <div className="mt-8 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+        <div className="flex items-start gap-2">
+          <span className="text-yellow-600">⚠️</span>
+          <div className="text-sm text-yellow-800">
+            <strong>注意：</strong>默认内容的修改会保存到数据库中，如果数据库不可用则保存到本地存储。
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+
   const renderAgentModule = () => (
     <div>
       <h2 className="text-xl font-bold mb-4 text-indigo-600">智能体管理</h2>
@@ -361,7 +1069,7 @@ export default function AdminPage() {
               <div className="font-bold text-indigo-700 truncate">{a.name}</div>
               <div className="text-gray-500 text-sm truncate">{a.description}</div>
               <div className="flex gap-1 mb-1">
-                {a.tags.map((tag: string) => (
+                {(a.tags || []).map((tag: string) => (
                   <span key={tag} className="px-2 py-0.5 bg-indigo-50 text-indigo-600 text-xs rounded">{tag}</span>
                 ))}
               </div>
@@ -407,7 +1115,7 @@ export default function AdminPage() {
             <button type="button" onClick={addTag} className="px-4 py-2 bg-indigo-100 text-indigo-600 rounded hover:bg-indigo-200">添加</button>
           </div>
           <div className="flex flex-wrap gap-1">
-            {form.tags.map((tag: string) => (
+            {(form.tags || []).map((tag: string) => (
               <span key={tag} className="px-2 py-1 bg-indigo-50 text-indigo-600 text-sm rounded flex items-center gap-1">
                 {tag}
                 <button type="button" onClick={() => removeTag(tag)} className="text-red-500 hover:text-red-700">×</button>
@@ -437,7 +1145,7 @@ export default function AdminPage() {
                 <div className="font-bold text-indigo-700 text-lg">{p.title}</div>
                 <div className="text-gray-500 text-sm mb-2">{p.description}</div>
                 <div className="flex gap-1 mb-2">
-                  {p.tags.map((tag: string) => (
+                  {(p.tags || []).map((tag: string) => (
                     <span key={tag} className="px-2 py-0.5 bg-indigo-50 text-indigo-600 text-xs rounded">{tag}</span>
                   ))}
                 </div>
@@ -474,7 +1182,7 @@ export default function AdminPage() {
             <button type="button" onClick={addTag} className="px-4 py-2 bg-indigo-100 text-indigo-600 rounded hover:bg-indigo-200">添加</button>
           </div>
           <div className="flex flex-wrap gap-1">
-            {form.tags.map((tag: string) => (
+            {(form.tags || []).map((tag: string) => (
               <span key={tag} className="px-2 py-1 bg-indigo-50 text-indigo-600 text-sm rounded flex items-center gap-1">
                 {tag}
                 <button type="button" onClick={() => removeTag(tag)} className="text-red-500 hover:text-red-700">×</button>
@@ -701,13 +1409,13 @@ export default function AdminPage() {
   )
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-violet-50 p-8">
+    <div className="p-8">
       <div className="max-w-4xl mx-auto">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold text-indigo-700">管理后台</h1>
           <button onClick={logout} className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition">退出登录</button>
         </div>
-        <div className="flex gap-6 justify-center mb-10">
+        <div className="flex gap-3 justify-center mb-10">
           {modules.map(m => (
             <button
               key={m.key}
@@ -721,9 +1429,11 @@ export default function AdminPage() {
           ))}
         </div>
         <div className="bg-white rounded-xl shadow p-6 min-h-[400px]">
+          {active === 'carousel' && renderCarouselModule()}
           {active === 'agents' && renderAgentModule()}
           {active === 'prompts' && renderPromptModule()}
           {active === 'resources' && renderResourceModule()}
+          {active === 'default-content' && renderDefaultContentModule()}
           {active === 'requests' && renderRequestModule()}
         </div>
       </div>

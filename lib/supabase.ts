@@ -51,4 +51,20 @@ export interface CustomRequest {
   contact?: string
   status: '待处理' | '处理中' | '已完成' | '已取消'
   created_at: string
+}
+
+export interface CarouselItem {
+  id: string
+  title: string
+  image: string
+  description: string
+  order_index?: number
+  created_at?: string
+}
+
+export interface DefaultContent {
+  id: string
+  content_type: 'agents' | 'prompts' | 'teaching_resources' | 'carousel'
+  content_data: any
+  updated_at?: string
 } 
