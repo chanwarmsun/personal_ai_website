@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react'
 import contentData from '../data/content.json'
 import CustomRequestModal from './CustomRequestModal'
 import { resourceOperations } from '../lib/database'
+import { analytics } from '../lib/analytics'
 
 export default function ResourcesSection() {
   const [allResources, setAllResources] = useState(contentData.teachingResources)
@@ -41,6 +42,9 @@ export default function ResourcesSection() {
   }
 
   const handleDownload = (resource: any) => {
+    // 记录资源下载统计
+    analytics.trackResourceDownload(resource.title)
+    
     // 创建下载链接
     const link = document.createElement('a')
     link.href = resource.downloadUrl

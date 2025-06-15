@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react'
 import contentData from '../data/content.json'
 import CustomRequestModal from './CustomRequestModal'
 import { agentOperations } from '../lib/database'
+import { analytics } from '../lib/analytics'
 
 export default function AgentsSection() {
   const { agents: originalAgents } = contentData
@@ -111,7 +112,19 @@ export default function AgentsSection() {
     ).length
   }
 
+  // 处理搜索
+  const handleSearch = (query: string) => {
+    setSearchQuery(query)
+    // 记录搜索关键词统计
+    if (query.trim()) {
+      analytics.trackSearch(query.trim())
+    }
+  }
+
   const handleAgentClick = (agent: any) => {
+    // 记录智能体点击统计
+    analytics.trackAgentClick(agent.name, agent.type || 'link')
+    
     if (agent.type === 'download') {
       // 创建下载链接
       const link = document.createElement('a')
@@ -180,7 +193,7 @@ export default function AgentsSection() {
                   type="text"
                   placeholder="搜索智能体名称、功能..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => handleSearch(e.target.value)}
                   className="w-full pl-12 pr-4 py-3 bg-white rounded-2xl border border-gray-200 focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 transition-all duration-300 text-gray-700 placeholder-gray-400"
                 />
                 {searchQuery && (

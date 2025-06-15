@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react'
 import contentData from '../data/content.json'
 import CustomRequestModal from './CustomRequestModal'
 import { promptOperations } from '../lib/database'
+import { analytics } from '../lib/analytics'
 
 export default function PromptsSection() {
   const [allPrompts, setAllPrompts] = useState(contentData.prompts)
@@ -47,6 +48,9 @@ export default function PromptsSection() {
   }
 
   const handleDownload = (prompt: any) => {
+    // 记录提示词下载统计
+    analytics.trackPromptDownload(prompt.title)
+    
     const blob = new Blob([prompt.content], { type: 'text/plain;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')

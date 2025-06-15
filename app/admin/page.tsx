@@ -14,6 +14,7 @@ const modules = [
   { key: 'resources', name: 'AI教学资源', desc: '管理教学资源，支持增删改查', icon: '📚' },
   { key: 'default-content', name: '默认内容', desc: '编辑网站默认内容（智能体、提示词、资源）', icon: '📋' },
   { key: 'requests', name: '定制申请', desc: '查看用户定制申请，支持状态管理', icon: '📝' },
+  { key: 'analytics', name: '数据统计', desc: '查看网站访问统计和用户行为分析', icon: '📊' },
 ]
 
 const defaultAgent = { 
@@ -269,6 +270,13 @@ export default function AdminPage() {
   const handleSwitchModule = (moduleKey: string) => {
     setActive(moduleKey)
     setEditingIndex(null)
+    
+    // 如果是analytics模块，直接跳转到专门的页面
+    if (moduleKey === 'analytics') {
+      router.push('/admin/analytics')
+      return
+    }
+    
     let defaultForm: any = getCurrentDefault()
     // 确保tags字段存在
     if (moduleKey === 'agents' || moduleKey === 'prompts') {
@@ -1415,16 +1423,16 @@ export default function AdminPage() {
           <h1 className="text-3xl font-bold text-indigo-700">管理后台</h1>
           <button onClick={logout} className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition">退出登录</button>
         </div>
-        <div className="flex gap-3 justify-center mb-10">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 justify-center mb-10">
           {modules.map(m => (
             <button
               key={m.key}
               onClick={() => handleSwitchModule(m.key)}
-              className={`flex flex-col items-center px-6 py-4 rounded-2xl shadow transition-all duration-200 border-2 ${active === m.key ? 'bg-gradient-to-r from-indigo-500 to-violet-500 text-white border-indigo-400 scale-105' : 'bg-white text-indigo-700 border-transparent hover:border-indigo-200'}`}
+              className={`flex flex-col items-center px-4 py-4 rounded-2xl shadow transition-all duration-200 border-2 min-h-[120px] w-full ${active === m.key ? 'bg-gradient-to-r from-indigo-500 to-violet-500 text-white border-indigo-400 scale-105' : 'bg-white text-indigo-700 border-transparent hover:border-indigo-200'}`}
             >
-              <span className="text-3xl mb-2">{m.icon}</span>
-              <span className="font-bold text-lg">{m.name}</span>
-              <span className="text-xs mt-1 opacity-70">{m.desc}</span>
+              <span className="text-2xl mb-2">{m.icon}</span>
+              <span className="font-bold text-sm whitespace-nowrap">{m.name}</span>
+              <span className="text-xs mt-1 opacity-70 text-center leading-tight">{m.desc}</span>
             </button>
           ))}
         </div>
