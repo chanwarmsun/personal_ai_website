@@ -41,6 +41,7 @@ const defaultResource = {
   difficulty: '教师用',
   size: '',
   downloadUrl: '',
+  download_url: '',
   downloads: 0
 }
 
@@ -59,7 +60,7 @@ export default function AdminPage() {
   const [carousel, setCarousel] = useState<any[]>([])
   const [defaultContent, setDefaultContent] = useState<any>({})
   const [editingIndex, setEditingIndex] = useState<number | null>(null)
-  const [form, setForm] = useState<any>(defaultCarouselItem)
+  const [form, setForm] = useState<any>({...defaultCarouselItem, tags: []})
   const [tagInput, setTagInput] = useState('')
   const [editingDefaultItem, setEditingDefaultItem] = useState<{type: string, index: number} | null>(null)
   const [defaultEditForm, setDefaultEditForm] = useState<any>({})
@@ -117,7 +118,12 @@ export default function AdminPage() {
   const loadResources = async () => {
     try {
       const dbResources = await resourceOperations.getAll()
-      setResources(dbResources)
+      // 处理字段映射：download_url -> downloadUrl
+      const formattedResources = dbResources.map(resource => ({
+        ...resource,
+        downloadUrl: resource.download_url
+      }))
+      setResources(formattedResources)
     } catch (error) {
       console.error('加载教学资源失败:', error)
       // 回退到localStorage
@@ -323,9 +329,14 @@ export default function AdminPage() {
     else if (active === 'agents') requiredField = 'name'
     else requiredField = 'title'
     
-    if (!form[requiredField]?.trim()) return
+    if (!form[requiredField]?.trim()) {
+      alert(`请填写${requiredField === 'name' ? '名称' : '标题'}`)
+      return
+    }
     
     console.log('🚀 开始提交表单:', { active, form, editingIndex })
+    console.log('📋 表单完整内容:', JSON.stringify(form, null, 2))
+    console.log('🏷️ 表单tags字段:', form.tags, '类型:', typeof form.tags)
     
     try {
       if (editingIndex !== null) {
@@ -352,9 +363,10 @@ export default function AdminPage() {
             await loadPrompts()
           }
         } else {
+          const { downloadUrl, ...updateData } = form
           const updated = await resourceOperations.update(form.id, {
-            ...form,
-            download_url: form.downloadUrl
+            ...updateData,
+            download_url: downloadUrl || form.download_url
           })
           if (updated) {
             // 直接重新加载数据，不需要手动更新状态
@@ -376,6 +388,20 @@ export default function AdminPage() {
           }
         } else if (active === 'agents') {
           console.log('📝 创建智能体:', form)
+          // 验证必须字段
+          if (!form.name?.trim()) {
+            alert('请填写智能体名称')
+            return
+          }
+          if (!form.description?.trim()) {
+            alert('请填写智能体描述')
+            return
+          }
+          if (!form.url?.trim()) {
+            alert('请填写智能体链接')
+            return
+          }
+          
           // 确保不包含id字段
           const { id, ...agentData } = form
           console.log('📝 清理后的数据:', agentData)
@@ -385,9 +411,26 @@ export default function AdminPage() {
             // 直接重新加载数据，不需要手动更新状态
             await loadAgents()
             console.log('🔄 重新加载智能体完成')
+            alert('智能体创建成功！')
+          } else {
+            alert('智能体创建失败，请检查控制台错误信息')
           }
         } else if (active === 'prompts') {
           console.log('📝 创建提示词:', form)
+          // 验证必须字段
+          if (!form.title?.trim()) {
+            alert('请填写提示词标题')
+            return
+          }
+          if (!form.description?.trim()) {
+            alert('请填写提示词描述')
+            return
+          }
+          if (!form.content?.trim()) {
+            alert('请填写提示词内容')
+            return
+          }
+          
           // 确保不包含id字段
           const { id, ...promptData } = form
           console.log('📝 清理后的数据:', promptData)
@@ -397,14 +440,27 @@ export default function AdminPage() {
             // 直接重新加载数据，不需要手动更新状态
             await loadPrompts()
             console.log('🔄 重新加载提示词完成')
+            alert('提示词创建成功！')
+          } else {
+            alert('提示词创建失败，请检查控制台错误信息')
           }
         } else {
           console.log('📝 创建教学资源:', form)
+          // 验证必须字段
+          if (!form.title?.trim()) {
+            alert('请填写资源标题')
+            return
+          }
+          if (!form.description?.trim()) {
+            alert('请填写资源描述')
+            return
+          }
+          
           // 确保不包含id字段，并处理字段映射
           const { id, downloadUrl, ...resourceData } = form
           const finalData = {
             ...resourceData,
-            download_url: downloadUrl
+            download_url: downloadUrl || form.download_url || ''
           }
           console.log('📝 清理后的数据:', finalData)
           const created = await resourceOperations.create(finalData)
@@ -413,6 +469,9 @@ export default function AdminPage() {
             // 直接重新加载数据，不需要手动更新状态
             await loadResources()
             console.log('🔄 重新加载教学资源完成')
+            alert('教学资源创建成功！')
+          } else {
+            alert('教学资源创建失败，请检查控制台错误信息')
           }
         }
       }
@@ -422,7 +481,7 @@ export default function AdminPage() {
       if (fileInputRef.current) fileInputRef.current.value = ''
     } catch (error) {
       console.error('保存失败:', error)
-      alert('保存失败，请重试')
+      alert('保存失败，请重试。错误详情: ' + (error instanceof Error ? error.message : '未知错误'))
     }
   }
 
@@ -444,12 +503,12 @@ export default function AdminPage() {
         const item = currentData[idx]
         
         // 从数据库删除
-              if (active === 'carousel') {
-        const item = carousel[idx]
-        const success = await carouselOperations.delete(item.id)
-        if (success) {
-          await loadCarousel()
-        }
+        if (active === 'carousel') {
+          const item = carousel[idx]
+          const success = await carouselOperations.delete(item.id)
+          if (success) {
+            await loadCarousel()
+          }
         } else if (active === 'agents') {
           const success = await agentOperations.delete(item.id)
           if (success) {
@@ -1364,7 +1423,7 @@ export default function AdminPage() {
                 <div className="text-xs text-gray-500 mb-3">
                   申请人: {req.name} | 邮箱: {req.email} | 
                   {req.contact && ` 联系: ${req.contact} |`} 
-                  提交时间: {new Date(req.createdAt).toLocaleString()}
+                  提交时间: {req.created_at ? new Date(req.created_at).toLocaleString() : '未知时间'}
                 </div>
                 <details className="text-sm">
                   <summary className="cursor-pointer text-indigo-600 hover:text-indigo-800">查看详细需求</summary>
