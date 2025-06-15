@@ -4,11 +4,11 @@ import { motion } from 'framer-motion'
 import { ChevronLeft, ChevronRight, Play, Pause } from 'lucide-react'
 import Image from 'next/image'
 import { useState, useEffect, useRef } from 'react'
-import contentData from '../data/content.json'
+import { defaultContentProvider } from '../lib/default-content-provider'
 import { carouselOperations } from '../lib/carousel-operations'
 
 export default function CarouselSection() {
-  const { carousel: defaultCarousel } = contentData
+  const [defaultCarousel, setDefaultCarousel] = useState<any[]>([])
   const [isAutoPlaying, setIsAutoPlaying] = useState(true)
   const [customCarousel, setCustomCarousel] = useState<any[]>([])
   const [mounted, setMounted] = useState(false)
@@ -19,8 +19,20 @@ export default function CarouselSection() {
   // 处理客户端挂载
   useEffect(() => {
     setMounted(true)
+    loadDefaultCarousel()
     loadCustomCarousel()
   }, [])
+
+  // 从数据库加载默认轮播
+  const loadDefaultCarousel = async () => {
+    try {
+      const carousel = await defaultContentProvider.getCarousel()
+      setDefaultCarousel(carousel)
+    } catch (error) {
+      console.error('加载默认轮播失败:', error)
+      setDefaultCarousel([])
+    }
+  }
 
   // 从数据库和localStorage加载自定义轮播图片
   const loadCustomCarousel = async () => {

@@ -22,7 +22,6 @@ export interface Prompt {
   title: string
   description: string
   content: string
-  tags: string[]
   downloads: number
   created_at?: string
 }

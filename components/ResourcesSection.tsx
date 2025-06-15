@@ -3,39 +3,44 @@
 import { motion } from 'framer-motion'
 import { FileText, Download, BookOpen, Award, TrendingUp } from 'lucide-react'
 import { useState, useEffect } from 'react'
-import contentData from '../data/content.json'
 import CustomRequestModal from './CustomRequestModal'
 import { resourceOperations } from '../lib/database'
 import { analytics } from '../lib/analytics'
+import { defaultContentProvider } from '../lib/default-content-provider'
 
 export default function ResourcesSection() {
-  const [allResources, setAllResources] = useState(contentData.teachingResources)
+  const [allResources, setAllResources] = useState<any[]>([])
   const [showRequestModal, setShowRequestModal] = useState(false)
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
     setMounted(true)
-    loadCustomResources()
+    loadDefaultAndCustomResources()
   }, [])
 
-  // 从数据库加载自定义教学资源
-  const loadCustomResources = async () => {
+  // 加载默认和自定义教学资源
+  const loadDefaultAndCustomResources = async () => {
     try {
+      // 加载默认教学资源
+      const defaultResources = await defaultContentProvider.getTeachingResources()
+      // 加载自定义教学资源
       const dbResources = await resourceOperations.getAll()
+      
       // 转换数据库字段名以匹配前端使用的字段名
       const formattedResources = dbResources.map(resource => ({
         ...resource,
         downloadUrl: resource.download_url
       }))
-      setAllResources([...contentData.teachingResources, ...formattedResources])
+      
+      setAllResources([...defaultResources, ...formattedResources])
     } catch (error) {
-      console.error('加载自定义教学资源失败:', error)
+      console.error('加载教学资源失败:', error)
       // 如果数据库加载失败，回退到localStorage
       if (typeof window !== 'undefined' && localStorage) {
         const customResources = localStorage.getItem('custom_resources')
         if (customResources) {
           const parsed = JSON.parse(customResources)
-          setAllResources([...contentData.teachingResources, ...parsed])
+          setAllResources(parsed)
         }
       }
     }

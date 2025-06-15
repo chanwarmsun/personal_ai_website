@@ -4,13 +4,13 @@ import { motion } from 'framer-motion'
 import { Bot, ExternalLink, Download, Play, Filter, Grid, List, Search, X, Sparkles } from 'lucide-react'
 import Image from 'next/image'
 import { useState, useEffect } from 'react'
-import contentData from '../data/content.json'
 import CustomRequestModal from './CustomRequestModal'
 import { agentOperations } from '../lib/database'
 import { analytics } from '../lib/analytics'
+import { defaultContentProvider } from '../lib/default-content-provider'
 
 export default function AgentsSection() {
-  const { agents: originalAgents } = contentData
+  const [defaultAgents, setDefaultAgents] = useState<any[]>([])
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [selectedCategory, setSelectedCategory] = useState<string>('全部')
   const [searchQuery, setSearchQuery] = useState<string>('')
@@ -22,8 +22,20 @@ export default function AgentsSection() {
   // 处理客户端挂载
   useEffect(() => {
     setMounted(true)
+    loadDefaultAgents()
     loadCustomAgents()
   }, [])
+
+  // 从数据库加载默认智能体
+  const loadDefaultAgents = async () => {
+    try {
+      const agents = await defaultContentProvider.getAgents()
+      setDefaultAgents(agents)
+    } catch (error) {
+      console.error('加载默认智能体失败:', error)
+      setDefaultAgents([])
+    }
+  }
 
   // 从数据库加载自定义智能体
   const loadCustomAgents = async () => {
@@ -40,8 +52,8 @@ export default function AgentsSection() {
     }
   }
   
-  // 合并原有智能体和自定义智能体
-  const agents = mounted ? [...originalAgents, ...customAgents] : originalAgents
+  // 合并默认智能体和自定义智能体
+  const agents = mounted ? [...defaultAgents, ...customAgents] : defaultAgents
   
   // 智能分类系统 - 基于功能而非技术标签
   const categories = [

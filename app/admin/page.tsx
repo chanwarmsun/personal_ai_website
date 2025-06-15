@@ -6,6 +6,7 @@ import { supabase } from '../../lib/supabase'
 import FileUploadComponent from '../../components/FileUploadComponent'
 import { agentOperations, promptOperations, resourceOperations, requestOperations } from '../../lib/database'
 import { carouselOperations, defaultContentOperations } from '../../lib/carousel-operations'
+import { defaultContentProvider } from '../../lib/default-content-provider'
 
 const modules = [
   { key: 'carousel', name: '轮播管理', desc: '管理首页轮播图片，支持增删改查', icon: '🎠' },
@@ -170,23 +171,68 @@ export default function AdminPage() {
 
   const loadDefaultContent = async () => {
     try {
-      // 首先尝试从数据库加载
+      console.log('🔄 开始加载默认内容...')
+      
+      // 优先从数据库加载已保存的内容
       const dbContent = await defaultContentOperations.get('website_default')
       if (dbContent) {
-        setDefaultContent(dbContent)
+        console.log('✅ 从数据库加载默认内容:', dbContent)
+        
+        // 确保数据格式正确，处理字段映射
+        const normalizedContent = {
+          agents: dbContent.agents || [],
+          prompts: dbContent.prompts || [],
+          // 处理教学资源的字段映射：teachingResources <-> resources
+          teachingResources: dbContent.teachingResources || dbContent.resources || [],
+          carousel: dbContent.carousel || []
+        }
+        
+        console.log('🔄 格式化后的默认内容:', normalizedContent)
+        setDefaultContent(normalizedContent)
         return
       }
       
-      // 如果数据库没有，从文件加载
+      console.log('⚠️ 数据库中没有保存的默认内容，从文件加载初始内容')
+      
+      // 如果数据库没有，从文件加载初始内容
       const response = await fetch('/data/content.json')
-      const data = await response.json()
-      setDefaultContent(data)
+      if (response.ok) {
+        const fileData = await response.json()
+        console.log('📁 从文件加载默认内容:', fileData)
+        
+        // 转换数据格式以匹配前端期望
+        const transformedData = {
+          agents: fileData.agents || [],
+          prompts: fileData.prompts || [],
+          teachingResources: fileData.teachingResources || [], // 统一使用teachingResources字段
+          carousel: fileData.carousel || []
+        }
+        
+        console.log('🔄 转换后的数据格式:', transformedData)
+        setDefaultContent(transformedData)
+        
+        // 首次加载时，将转换后的内容保存到数据库
+        console.log('💾 首次加载，将转换后的内容保存到数据库...')
+        await defaultContentOperations.save('website_default', transformedData)
+      } else {
+        throw new Error('无法从文件加载内容')
+      }
     } catch (error) {
       console.error('加载默认内容失败:', error)
       // 如果无法加载，使用静态导入的备份
       try {
         const contentData = await import('../../data/content.json')
-        setDefaultContent(contentData.default)
+        console.log('📦 使用静态导入的备份内容')
+        
+        // 转换数据格式
+        const transformedData = {
+          agents: contentData.default.agents || [],
+          prompts: contentData.default.prompts || [],
+          teachingResources: contentData.default.teachingResources || [], // 统一使用teachingResources字段
+          carousel: contentData.default.carousel || []
+        }
+        
+        setDefaultContent(transformedData)
       } catch (importError) {
         console.error('导入备份内容失败:', importError)
       }
@@ -233,26 +279,50 @@ export default function AdminPage() {
       // 同时保存到localStorage作为备份
       localStorage.setItem('default_content_backup', JSON.stringify(newContent))
       console.log('默认内容已保存到数据库')
-    } catch (error) {
+    } catch (error: any) {
       console.error('保存默认内容失败:', error)
       // 至少保存到localStorage
       localStorage.setItem('default_content_backup', JSON.stringify(newContent))
     }
   }
 
-  const updateRequestStatus = (index: number, status: string) => {
-    const updated = requests.map((req, i) => 
-      i === index ? { ...req, status } : req
-    )
-    setRequests(updated)
-    localStorage.setItem('custom_requests', JSON.stringify(updated))
+  const updateRequestStatus = async (index: number, status: string) => {
+    try {
+      const request = requests[index]
+      console.log('🔄 更新申请状态:', request.id, '新状态:', status)
+      
+      const updated = await requestOperations.updateStatus(request.id, status as any)
+      if (updated) {
+        // 重新加载数据确保同步
+        await loadRequests()
+        console.log('✅ 申请状态更新成功')
+      } else {
+        alert('更新申请状态失败，请检查控制台错误信息')
+      }
+    } catch (error: any) {
+      console.error('更新申请状态失败:', error)
+      alert('更新失败，请重试。错误详情: ' + (error instanceof Error ? error.message : '未知错误'))
+    }
   }
 
-  const deleteRequest = (index: number) => {
+  const deleteRequest = async (index: number) => {
     if (window.confirm('确定要删除该申请吗？')) {
-      const updated = requests.filter((_, i) => i !== index)
-      setRequests(updated)
-      localStorage.setItem('custom_requests', JSON.stringify(updated))
+      try {
+        const request = requests[index]
+        console.log('🗑️ 删除申请:', request.id)
+        
+        const success = await requestOperations.delete(request.id)
+        if (success) {
+          // 重新加载数据确保同步
+          await loadRequests()
+          console.log('✅ 申请删除成功')
+        } else {
+          alert('删除申请失败，请检查控制台错误信息')
+        }
+              } catch (error: any) {
+          console.error('删除申请失败:', error)
+          alert('删除失败，请重试。错误详情: ' + (error instanceof Error ? error.message : '未知错误'))
+        }
     }
   }
 
@@ -329,10 +399,21 @@ export default function AdminPage() {
     else if (active === 'agents') requiredField = 'name'
     else requiredField = 'title'
     
-    if (!form[requiredField]?.trim()) {
+    const fieldValue = form[requiredField]
+    if (!fieldValue || fieldValue.trim().length === 0) {
       alert(`请填写${requiredField === 'name' ? '名称' : '标题'}`)
       return
     }
+    
+    // 清理字符串数据，移除首尾空格但保留中间空格
+    const cleanForm = { ...form }
+    Object.keys(cleanForm).forEach(key => {
+      if (typeof cleanForm[key] === 'string') {
+        cleanForm[key] = cleanForm[key].trim()
+      }
+    })
+    
+    console.log('🧹 清理后的表单数据:', JSON.stringify(cleanForm, null, 2))
     
     console.log('🚀 开始提交表单:', { active, form, editingIndex })
     console.log('📋 表单完整内容:', JSON.stringify(form, null, 2))
@@ -377,111 +458,231 @@ export default function AdminPage() {
       } else {
         // 创建新项目
         if (active === 'carousel') {
-          const created = await carouselOperations.create({
-            title: form.title,
-            image: form.image,
-            description: form.description,
-            order_index: carousel.length
-          })
-          if (created) {
-            await loadCarousel()
+          console.log('📝 创建轮播图:', form)
+          
+          try {
+            const created = await carouselOperations.create({
+              title: form.title,
+              image: form.image,
+              description: form.description,
+              order_index: carousel.length
+            })
+            
+            if (created) {
+              console.log('🔄 开始重新加载轮播数据...')
+              await loadCarousel()
+              console.log('🔄 重新加载轮播完成')
+              
+              // 重置表单状态，确保下次输入正常
+              setForm(getCurrentDefault())
+              setTagInput('')
+              if (fileInputRef.current) fileInputRef.current.value = ''
+              
+              console.log('✅ 轮播图创建成功，表单已重置')
+              alert('轮播图创建成功！')
+              return // 提早返回，避免重复重置表单
+            } else {
+              console.error('❌ 创建返回null，但没有抛出异常')
+              alert('轮播图创建失败：服务器返回空结果，请检查网络连接或重试')
+            }
+          } catch (createError: any) {
+            console.error('💥 创建轮播图时发生异常:', createError)
+            alert(`轮播图创建失败：${createError.message || '未知错误'}`)
           }
         } else if (active === 'agents') {
           console.log('📝 创建智能体:', form)
+          console.log('🌐 当前环境:', process.env.NODE_ENV)
+          
           // 验证必须字段
-          if (!form.name?.trim()) {
+          if (!cleanForm.name?.trim()) {
             alert('请填写智能体名称')
             return
           }
-          if (!form.description?.trim()) {
+          if (!cleanForm.description?.trim()) {
             alert('请填写智能体描述')
             return
           }
-          if (!form.url?.trim()) {
+          if (!cleanForm.url?.trim()) {
             alert('请填写智能体链接')
             return
           }
           
-          // 确保不包含id字段
-          const { id, ...agentData } = form
-          console.log('📝 清理后的数据:', agentData)
-          const created = await agentOperations.create(agentData)
-          console.log('✅ 创建结果:', created)
-          if (created) {
-            // 直接重新加载数据，不需要手动更新状态
-            await loadAgents()
-            console.log('🔄 重新加载智能体完成')
-            alert('智能体创建成功！')
-          } else {
-            alert('智能体创建失败，请检查控制台错误信息')
+          try {
+            // 确保不包含id字段
+            const { id, ...agentData } = cleanForm
+            console.log('📝 清理后的数据:', JSON.stringify(agentData, null, 2))
+            console.log('📡 开始调用数据库创建操作...')
+            
+            // 增加超时保护
+            const createPromise = agentOperations.create(agentData)
+            const timeoutPromise = new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('操作超时，请检查网络连接')), 15000)
+            )
+            
+            const created = await Promise.race([createPromise, timeoutPromise])
+            console.log('✅ 数据库返回结果:', created)
+            
+            if (created) {
+              console.log('🔄 开始重新加载智能体数据...')
+              await loadAgents()
+              console.log('🔄 重新加载智能体完成')
+              
+              // 重置表单状态，确保下次输入正常
+              setForm(getCurrentDefault())
+              setTagInput('')
+              if (fileInputRef.current) fileInputRef.current.value = ''
+              
+              console.log('✅ 智能体创建成功，表单已重置')
+              alert('智能体创建成功！')
+              return // 提早返回，避免重复重置表单
+            } else {
+              console.error('❌ 创建返回null，但没有抛出异常')
+              alert('智能体创建失败：服务器返回空结果，请检查网络连接或重试')
+            }
+          } catch (createError: any) {
+            console.error('💥 创建智能体时发生异常:', createError)
+            console.error('异常类型:', typeof createError)
+            console.error('异常信息:', createError.message || '未知错误')
+            console.error('原始表单数据:', JSON.stringify(form, null, 2))
+            console.error('处理后数据:', JSON.stringify(cleanForm, null, 2))
+            alert(`智能体创建失败：${createError.message || '未知错误'}\n请检查控制台获取详细信息`)
           }
         } else if (active === 'prompts') {
           console.log('📝 创建提示词:', form)
+          
           // 验证必须字段
-          if (!form.title?.trim()) {
+          if (!cleanForm.title?.trim()) {
             alert('请填写提示词标题')
             return
           }
-          if (!form.description?.trim()) {
+          if (!cleanForm.description?.trim()) {
             alert('请填写提示词描述')
             return
           }
-          if (!form.content?.trim()) {
+          if (!cleanForm.content?.trim()) {
             alert('请填写提示词内容')
             return
           }
           
-          // 确保不包含id字段
-          const { id, ...promptData } = form
-          console.log('📝 清理后的数据:', promptData)
-          const created = await promptOperations.create(promptData)
-          console.log('✅ 创建结果:', created)
-          if (created) {
-            // 直接重新加载数据，不需要手动更新状态
-            await loadPrompts()
-            console.log('🔄 重新加载提示词完成')
-            alert('提示词创建成功！')
-          } else {
-            alert('提示词创建失败，请检查控制台错误信息')
+          try {
+            // 确保不包含id字段，并移除数据库中不存在的字段
+            const { id, tags, ...promptData } = cleanForm
+            // 确保包含downloads字段，默认为0
+            const finalData = {
+              ...promptData,
+              downloads: 0
+            }
+            console.log('📝 清理后的数据:', JSON.stringify(finalData, null, 2))
+            console.log('📡 开始调用数据库创建操作...')
+            
+            // 增加超时保护
+            const createPromise = promptOperations.create(finalData)
+            const timeoutPromise = new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('操作超时，请检查网络连接')), 15000)
+            )
+            
+            const created = await Promise.race([createPromise, timeoutPromise])
+            console.log('✅ 数据库返回结果:', created)
+            
+            if (created) {
+              console.log('🔄 开始重新加载提示词数据...')
+              await loadPrompts()
+              console.log('🔄 重新加载提示词完成')
+              
+              // 重置表单状态，确保下次输入正常
+              setForm(getCurrentDefault())
+              setTagInput('')
+              if (fileInputRef.current) fileInputRef.current.value = ''
+              
+              console.log('✅ 提示词创建成功，表单已重置')
+              alert('提示词创建成功！')
+              return // 提早返回，避免重复重置表单
+            } else {
+              console.error('❌ 创建返回null，但没有抛出异常')
+              alert('提示词创建失败：服务器返回空结果，请检查控制台错误信息')
+            }
+          } catch (createError: any) {
+            console.error('💥 创建提示词时发生异常:', createError)
+            console.error('异常类型:', typeof createError)
+            console.error('异常信息:', createError.message || '未知错误')
+            alert(`提示词创建失败：${createError.message || '未知错误'}`)
           }
         } else {
           console.log('📝 创建教学资源:', form)
+          
           // 验证必须字段
-          if (!form.title?.trim()) {
+          if (!cleanForm.title?.trim()) {
             alert('请填写资源标题')
             return
           }
-          if (!form.description?.trim()) {
+          if (!cleanForm.description?.trim()) {
             alert('请填写资源描述')
             return
           }
           
-          // 确保不包含id字段，并处理字段映射
-          const { id, downloadUrl, ...resourceData } = form
-          const finalData = {
-            ...resourceData,
-            download_url: downloadUrl || form.download_url || ''
-          }
-          console.log('📝 清理后的数据:', finalData)
-          const created = await resourceOperations.create(finalData)
-          console.log('✅ 创建结果:', created)
-          if (created) {
-            // 直接重新加载数据，不需要手动更新状态
-            await loadResources()
-            console.log('🔄 重新加载教学资源完成')
-            alert('教学资源创建成功！')
-          } else {
-            alert('教学资源创建失败，请检查控制台错误信息')
+          try {
+            // 确保不包含id字段，并处理字段映射，确保所有必需字段都存在
+            const { id, downloadUrl, download_url, ...resourceData } = cleanForm
+            const finalData = {
+              ...resourceData,
+              download_url: downloadUrl || download_url || '',
+              type: cleanForm.type || '课件',
+              difficulty: cleanForm.difficulty || '教师用',
+              size: cleanForm.size || '未知',
+              downloads: 0
+            }
+            console.log('📝 清理后的数据:', JSON.stringify(finalData, null, 2))
+            console.log('📡 开始调用数据库创建操作...')
+            
+            // 增加超时保护
+            const createPromise = resourceOperations.create(finalData)
+            const timeoutPromise = new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('操作超时，请检查网络连接')), 15000)
+            )
+            
+            const created = await Promise.race([createPromise, timeoutPromise])
+            console.log('✅ 数据库返回结果:', created)
+            
+            if (created) {
+              console.log('🔄 开始重新加载教学资源数据...')
+              await loadResources()
+              console.log('🔄 重新加载教学资源完成')
+              
+              // 重置表单状态，确保下次输入正常
+              setForm(getCurrentDefault())
+              setTagInput('')
+              if (fileInputRef.current) fileInputRef.current.value = ''
+              
+              console.log('✅ 教学资源创建成功，表单已重置')
+              alert('教学资源创建成功！')
+              return // 提早返回，避免重复重置表单
+            } else {
+              console.error('❌ 创建返回null，但没有抛出异常')
+              alert('教学资源创建失败：服务器返回空结果，请检查控制台错误信息')
+            }
+          } catch (createError: any) {
+            console.error('💥 创建教学资源时发生异常:', createError)
+            console.error('异常类型:', typeof createError)
+            console.error('异常信息:', createError.message || '未知错误')
+            alert(`教学资源创建失败：${createError.message || '未知错误'}`)
           }
         }
       }
       
+      // 仅在编辑或失败情况下重置表单（成功创建已经在各自的分支中重置了）
+      if (editingIndex !== null) {
+        setForm(getCurrentDefault())
+        setTagInput('')
+        if (fileInputRef.current) fileInputRef.current.value = ''
+      }
+    } catch (error: any) {
+      console.error('保存失败:', error)
+      alert('保存失败，请重试。错误详情: ' + (error instanceof Error ? error.message : '未知错误'))
+      
+      // 在发生错误时重置表单
       setForm(getCurrentDefault())
       setTagInput('')
       if (fileInputRef.current) fileInputRef.current.value = ''
-    } catch (error) {
-      console.error('保存失败:', error)
-      alert('保存失败，请重试。错误详情: ' + (error instanceof Error ? error.message : '未知错误'))
     }
   }
 
@@ -532,9 +733,9 @@ export default function AdminPage() {
         setEditingIndex(null)
         setForm(getCurrentDefault())
         if (fileInputRef.current) fileInputRef.current.value = ''
-      } catch (error) {
+      } catch (error: any) {
         console.error('删除失败:', error)
-        alert('删除失败，请重试')
+        alert('删除失败，请重试。错误详情: ' + (error instanceof Error ? error.message : '未知错误'))
       }
     }
   }
@@ -559,20 +760,40 @@ export default function AdminPage() {
   const handleDefaultContentSave = async () => {
     if (!editingDefaultItem) return
     
-    const { type, index } = editingDefaultItem
-    const updatedContent = { ...defaultContent }
-    
-    if (type === 'agents') {
-      updatedContent.agents[index] = { ...defaultEditForm }
-    } else if (type === 'prompts') {
-      updatedContent.prompts[index] = { ...defaultEditForm }
-    } else if (type === 'teachingResources') {
-      updatedContent.teachingResources[index] = { ...defaultEditForm }
+    try {
+      console.log('🔄 开始保存默认内容修改...')
+      console.log('编辑项目:', editingDefaultItem)
+      console.log('表单数据:', defaultEditForm)
+      
+      const { type, index } = editingDefaultItem
+      const updatedContent = { ...defaultContent }
+      
+      if (type === 'agents') {
+        updatedContent.agents[index] = { ...defaultEditForm }
+      } else if (type === 'prompts') {
+        updatedContent.prompts[index] = { ...defaultEditForm }
+      } else if (type === 'teachingResources') {
+        updatedContent.teachingResources[index] = { ...defaultEditForm }
+      }
+      
+      console.log('🔄 保存到数据库中...')
+      await saveDefaultContent(updatedContent)
+      
+      console.log('🔄 清除前端缓存...')
+      defaultContentProvider.clearCache()
+      
+      console.log('🔄 重新加载默认内容...')
+      await loadDefaultContent()
+      
+      setEditingDefaultItem(null)
+      setDefaultEditForm({})
+      
+      console.log('✅ 默认内容修改保存成功')
+      alert('修改已保存！前端内容将在刷新后更新。')
+    } catch (error: any) {
+      console.error('❌ 保存默认内容失败:', error)
+      alert('保存失败，请重试。错误详情: ' + (error instanceof Error ? error.message : '未知错误'))
     }
-    
-    await saveDefaultContent(updatedContent)
-    setEditingDefaultItem(null)
-    setDefaultEditForm({})
   }
 
   const handleDefaultContentCancel = () => {

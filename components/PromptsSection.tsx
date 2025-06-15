@@ -3,35 +3,39 @@
 import { motion } from 'framer-motion'
 import { Hash, Download, Copy, TrendingUp } from 'lucide-react'
 import { useState, useEffect } from 'react'
-import contentData from '../data/content.json'
 import CustomRequestModal from './CustomRequestModal'
 import { promptOperations } from '../lib/database'
 import { analytics } from '../lib/analytics'
+import { defaultContentProvider } from '../lib/default-content-provider'
 
 export default function PromptsSection() {
-  const [allPrompts, setAllPrompts] = useState(contentData.prompts)
+  const [allPrompts, setAllPrompts] = useState<any[]>([])
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [showRequestModal, setShowRequestModal] = useState(false)
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
     setMounted(true)
-    loadCustomPrompts()
+    loadDefaultAndCustomPrompts()
   }, [])
 
-  // 从数据库加载自定义提示词
-  const loadCustomPrompts = async () => {
+  // 加载默认和自定义提示词
+  const loadDefaultAndCustomPrompts = async () => {
     try {
+      // 加载默认提示词
+      const defaultPrompts = await defaultContentProvider.getPrompts()
+      // 加载自定义提示词
       const dbPrompts = await promptOperations.getAll()
-      setAllPrompts([...contentData.prompts, ...dbPrompts])
+      
+      setAllPrompts([...defaultPrompts, ...dbPrompts])
     } catch (error) {
-      console.error('加载自定义提示词失败:', error)
+      console.error('加载提示词失败:', error)
       // 如果数据库加载失败，回退到localStorage
       if (typeof window !== 'undefined' && localStorage) {
         const customPrompts = localStorage.getItem('custom_prompts')
         if (customPrompts) {
           const parsed = JSON.parse(customPrompts)
-          setAllPrompts([...contentData.prompts, ...parsed])
+          setAllPrompts(parsed)
         }
       }
     }

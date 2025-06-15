@@ -3,12 +3,37 @@
 import { motion } from 'framer-motion'
 import { MessageCircle, Phone, Megaphone, Download, ExternalLink, Bookmark, Users } from 'lucide-react'
 import Image from 'next/image'
-import { useState, useRef } from 'react'
-import contentData from '../data/content.json'
+import { useState, useRef, useEffect } from 'react'
+import { defaultContentProvider } from '../lib/default-content-provider'
 
 export default function PersonalInfo() {
-  const { personalInfo } = contentData
+  const [personalInfo, setPersonalInfo] = useState<any>(null)
   const [hoveredIcon, setHoveredIcon] = useState<string | null>(null)
+  
+  // 为每个社交链接按钮创建ref
+  const btnRefs = useRef<{ [key: string]: HTMLButtonElement | null }>({})
+
+  useEffect(() => {
+    loadPersonalInfo()
+  }, [])
+
+  const loadPersonalInfo = async () => {
+    try {
+      const info = await defaultContentProvider.getPersonalInfo()
+      setPersonalInfo(info)
+    } catch (error) {
+      console.error('加载个人信息失败:', error)
+    }
+  }
+
+  if (!personalInfo) {
+    return <div className="pt-20 pb-16 flex items-center justify-center">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+        <p className="text-gray-600">加载中...</p>
+      </div>
+    </div>
+  }
 
   const socialLinks = [
     { icon: Megaphone, url: personalInfo.links.gongzhonghao, label: '公众号', qrCode: '/qr-gongzhonghao.png' },
@@ -100,8 +125,8 @@ export default function PersonalInfo() {
                   className="flex flex-wrap gap-3"
                 >
                   {socialLinks.map((link, index) => {
-                    const btnRef = useRef<HTMLButtonElement>(null)
                     const isActive = hoveredIcon === link.label
+                    const currentBtn = btnRefs.current[link.label]
                     return (
                     <motion.div
                       key={link.label}
@@ -113,7 +138,7 @@ export default function PersonalInfo() {
                         transition={{ duration: 0.6 }}
                     >
                       <motion.button
-                          ref={btnRef}
+                          ref={(el) => { btnRefs.current[link.label] = el }}
                           animate={{ scale: isActive ? 1.12 : 1 }}
                           transition={{ duration: 0.08, type: 'spring', stiffness: 600, damping: 20 }}
                           className={`btn-bounce inline-flex items-center justify-center w-24 h-12 bg-gradient-to-r from-indigo-500 to-violet-500 text-white rounded-xl font-medium shadow-lg hover:shadow-xl transform-gpu border-2 text-sm ${isActive ? 'border-transparent ring-2 ring-indigo-400 ring-offset-2' : 'border-transparent'}`}
@@ -129,11 +154,11 @@ export default function PersonalInfo() {
                         <span className="whitespace-nowrap">{link.label}</span>
                       </motion.button>
                         {/* 二维码绝对定位到按钮右上角 */}
-                        {isActive && btnRef.current && (
+                        {isActive && currentBtn && (
                       <motion.div
                             initial={{ opacity: 0, scale: 0.1, x: 0, y: 0 }}
-                            animate={{ opacity: 1, scale: 1, x: btnRef.current.offsetWidth + 8, y: -16 }}
-                            exit={{ opacity: 0, scale: 0.1, x: btnRef.current.offsetWidth + 8, y: 0 }}
+                            animate={{ opacity: 1, scale: 1, x: currentBtn.offsetWidth + 8, y: -16 }}
+                            exit={{ opacity: 0, scale: 0.1, x: currentBtn.offsetWidth + 8, y: 0 }}
                             transition={{ duration: 0.08, type: 'spring', stiffness: 600, damping: 20 }}
                             className="absolute z-30"
                             style={{ top: 0, left: 0, pointerEvents: 'auto' }}

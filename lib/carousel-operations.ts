@@ -106,10 +106,11 @@ export const defaultContentOperations = {
         .from('default_content')
         .select('content_data')
         .eq('content_type', contentType)
-        .single()
+        .order('updated_at', { ascending: false })
+        .limit(1)
       
       if (error) throw error
-      return data?.content_data || null
+      return data && data.length > 0 ? data[0].content_data : null
     } catch (error) {
       console.error('获取默认内容失败:', error)
       return null
@@ -119,15 +120,48 @@ export const defaultContentOperations = {
   // 保存默认内容
   async save(contentType: string, contentData: any): Promise<boolean> {
     try {
-      const { error } = await supabase
-        .from('default_content')
-        .upsert({
-          content_type: contentType,
-          content_data: contentData,
-          updated_at: new Date().toISOString()
-        })
+      console.log('🔄 保存默认内容，类型:', contentType)
       
-      if (error) throw error
+      // 先检查是否已存在该类型的记录
+      const { data: existing, error: selectError } = await supabase
+        .from('default_content')
+        .select('id')
+        .eq('content_type', contentType)
+        .limit(1)
+      
+      if (selectError) {
+        console.error('查询现有记录失败:', selectError)
+        throw selectError
+      }
+      
+      if (existing && existing.length > 0) {
+        // 更新现有记录
+        console.log('📝 更新现有记录，ID:', existing[0].id)
+        const { error: updateError } = await supabase
+          .from('default_content')
+          .update({
+            content_data: contentData,
+            updated_at: new Date().toISOString()
+          })
+          .eq('content_type', contentType)
+        
+        if (updateError) throw updateError
+        console.log('✅ 更新成功')
+      } else {
+        // 创建新记录
+        console.log('📝 创建新记录')
+        const { error: insertError } = await supabase
+          .from('default_content')
+          .insert({
+            content_type: contentType,
+            content_data: contentData,
+            updated_at: new Date().toISOString()
+          })
+        
+        if (insertError) throw insertError
+        console.log('✅ 创建成功')
+      }
+      
       return true
     } catch (error) {
       console.error('保存默认内容失败:', error)
