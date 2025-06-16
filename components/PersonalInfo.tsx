@@ -6,8 +6,27 @@ import Image from 'next/image'
 import { useState, useRef, useEffect } from 'react'
 import { defaultContentProvider } from '../lib/default-content-provider'
 
+interface Skill {
+  name: string;
+  level: number;
+}
+
+interface PersonalInfoType {
+  name: string;
+  title: string;
+  slogan: string;
+  bio: string;
+  avatar: string;
+  skills: Skill[];
+  links: {
+    gongzhonghao: string;
+    wechat: string;
+    qq: string;
+  };
+}
+
 export default function PersonalInfo() {
-  const [personalInfo, setPersonalInfo] = useState<any>(null)
+  const [personalInfo, setPersonalInfo] = useState<PersonalInfoType | null>(null)
   const [hoveredIcon, setHoveredIcon] = useState<string | null>(null)
   
   // 为每个社交链接按钮创建ref
