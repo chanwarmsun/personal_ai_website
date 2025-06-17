@@ -19,6 +19,11 @@ export default function AgentsSection() {
   const [mounted, setMounted] = useState(false)
   const [customAgents, setCustomAgents] = useState<any[]>([])
   
+  // 分页状态 - 不影响现有功能
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage] = useState(6) // 每页显示6个智能体
+  const [showAllMode, setShowAllMode] = useState(false) // 是否显示全部模式
+  
   // 处理客户端挂载
   useEffect(() => {
     setMounted(true)
@@ -109,6 +114,17 @@ export default function AgentsSection() {
   }
   
   const filteredAgents = getFilteredAgents()
+  
+  // 分页逻辑 - 不修改原有筛选功能
+  const totalPages = Math.ceil(filteredAgents.length / itemsPerPage)
+  const currentAgents = showAllMode 
+    ? filteredAgents // 显示全部模式：显示所有筛选结果
+    : filteredAgents.slice(0, currentPage * itemsPerPage) // 分页模式：显示前N页的内容
+  
+  // 重置分页当筛选条件改变时
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [selectedCategory, searchQuery, sortBy])
   
   // 更新分类计数
   const getCategoryCount = (categoryId: string) => {
@@ -365,7 +381,7 @@ export default function AgentsSection() {
               ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6' 
               : 'space-y-4'
           }`}>
-            {filteredAgents.map((agent, index) => (
+            {currentAgents.map((agent, index) => (
             <motion.div
               key={agent.id}
               initial={{ opacity: 0, y: 20 }}
@@ -480,6 +496,58 @@ export default function AgentsSection() {
             </motion.div>
           ))}
           </div>
+        )}
+
+        {/* 分页控制 - 只在有多页内容时显示 */}
+        {filteredAgents.length > itemsPerPage && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.3 }}
+            viewport={{ once: true }}
+            className="flex flex-col items-center gap-4 mt-8"
+          >
+            {!showAllMode && currentAgents.length < filteredAgents.length && (
+              <div className="flex flex-col sm:flex-row items-center gap-3">
+                <p className="text-sm text-gray-600">
+                  显示 <span className="font-semibold text-indigo-600">{currentAgents.length}</span> / 
+                  <span className="font-semibold">{filteredAgents.length}</span> 个智能体
+                </p>
+                <div className="flex gap-2">
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setCurrentPage(prev => prev + 1)}
+                    className="btn-bounce px-4 py-2 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-lg font-medium shadow-lg hover:shadow-xl transition-all duration-300"
+                  >
+                    加载更多 ({filteredAgents.length - currentAgents.length})
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setShowAllMode(true)}
+                    className="btn-bounce px-4 py-2 border-2 border-indigo-600 text-indigo-600 rounded-lg font-medium hover:bg-indigo-600 hover:text-white transition-all duration-300"
+                  >
+                    显示全部
+                  </motion.button>
+                </div>
+              </div>
+            )}
+            
+            {showAllMode && (
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  setShowAllMode(false)
+                  setCurrentPage(1)
+                }}
+                className="btn-bounce px-4 py-2 border-2 border-gray-400 text-gray-600 rounded-lg font-medium hover:bg-gray-100 transition-all duration-300"
+              >
+                收起显示
+              </motion.button>
+            )}
+          </motion.div>
         )}
 
         {/* 更多智能体提示 */}

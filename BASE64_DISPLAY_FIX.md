@@ -1,124 +1,62 @@
-# Base64字符串显示优化修复
+# Base64 文件显示优化
 
 ## 问题描述
-在AI教学资源管理页面上传文件后，会显示很长的Base64编码字符串，影响界面美观和可用性。
+
+在管理后台新增教学资源上传文件后，页面显示了很长的base64编码字符串，用户体验不佳。
 
 ## 解决方案
 
-### 🎯 修复目标
-保留所有上传功能，但隐藏冗长的Base64字符串，提供更友好的用户界面。
+### 1. 添加了智能URL格式化函数
 
-### ✅ 实施的修复
+在 `app/admin/page.tsx` 中添加了 `formatDownloadUrl` 函数：
 
-#### 1. 教学资源表单优化
-- **问题**：手动输入下载链接的输入框显示完整Base64字符串
-- **解决**：
-  - 检测Base64格式 (`data:`开头)
-  - 显示友好的文件信息卡片
-  - 显示文件大小和编码类型
-  - 提供清除按钮
+- **自动识别base64格式**：检测 `data:` 开头的URL
+- **智能大小计算**：根据base64编码长度估算原文件大小
+- **MIME类型提取**：从data URL中提取文件类型信息
+- **简洁显示**：以 "📎 上传文件 (类型, 大小)" 格式显示
 
-#### 2. 资源列表显示优化
-- **问题**：资源列表中显示完整的Base64字符串链接
-- **解决**：
-  - Base64文件显示为"📁 上传文件"标签
-  - 显示文件大小信息
-  - 普通URL链接截取显示（超过60字符时）
+### 2. 优化了教学资源列表显示
 
-#### 3. 下载功能保持完整
-- **确保**：所有下载功能正常工作
-- **验证**：Base64文件能正确下载为原始格式
-
-### 🔧 技术实现
-
-#### 表单输入区域优化
-```tsx
-{form.downloadUrl && form.downloadUrl.startsWith('data:') ? (
-  // Base64文件的友好显示
-  <div className="w-full px-3 py-2 border rounded bg-green-50 border-green-200">
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2">
-        <span className="text-green-600">📁</span>
-        <span className="text-sm text-green-700 font-medium">已上传文件</span>
-        <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">
-          Base64编码 ({Math.round(form.downloadUrl.length / 1024)}KB)
-        </span>
-      </div>
-      <button onClick={() => setForm(f => ({ ...f, downloadUrl: '' }))}>
-        ✕ 清除
-      </button>
-    </div>
-  </div>
-) : (
-  // 普通URL输入框
-  <input name="downloadUrl" value={form.downloadUrl} ... />
-)}
+**优化前：**
+```html
+<a href="data:video/mp4;base64,AAAIGZ0eXBpc29...很长的编码">data:video/mp4;base64,AAAIGZ0eXBpc89...</a>
 ```
 
-#### 列表显示优化
-```tsx
-{r.downloadUrl.startsWith('data:') ? (
-  <div className="flex items-center gap-2">
-    <span className="text-xs text-green-600">📁 上传文件</span>
-    <span className="text-xs text-green-500 bg-green-50 px-2 py-1 rounded">
-      Base64 ({Math.round(r.downloadUrl.length / 1024)}KB)
-    </span>
-  </div>
-) : (
-  <a href={r.downloadUrl} target="_blank">
-    {r.downloadUrl.length > 60 ? r.downloadUrl.substring(0, 60) + '...' : r.downloadUrl}
-  </a>
-)}
+**优化后：**
+```html
+<span class="badge">📎 上传文件 (video/mp4, 2.58MB)</span>
+<details>
+  <summary>查看编码</summary>
+  <div>data:video/mp4;base64,AAAIGZ0eX...</div>
+</details>
 ```
 
-### 🎨 用户体验改进
+### 3. 优化了表单预览显示
 
-#### 视觉优化
-- ✅ 绿色系配色表示已上传文件
-- ✅ 文件图标和大小显示
-- ✅ 清晰的状态标识
-- ✅ 一键清除功能
+在表单中添加了"当前下载链接"预览区域：
+- base64文件：显示文件类型和大小
+- 普通URL：显示链接预览
+- 支持展开查看完整编码
 
-#### 功能保持
-- ✅ 文件上传功能完整保留
-- ✅ Base64编码和解码正常
-- ✅ 下载功能正常工作
-- ✅ 编辑功能正常
+## 功能特点
 
-### 📋 测试验证
+1. **不影响原有功能**：文件仍然正常保存和下载
+2. **智能识别**：自动区分base64编码和普通URL
+3. **友好显示**：长编码以简洁格式展示
+4. **详情可查**：需要时可以展开查看完整编码
+5. **响应式设计**：适配不同屏幕尺寸
 
-#### 测试步骤
-1. **上传文件测试**：
-   - 进入AI教学资源管理
-   - 上传一个ZIP文件
-   - 验证显示为友好格式而非Base64字符串
+## 技术实现
 
-2. **显示测试**：
-   - 检查表单输入区域显示
-   - 检查资源列表显示
-   - 确认无长字符串
+- 使用正则表达式识别base64 data URL格式
+- 通过base64编码长度估算原文件大小（编码后约为原文件4/3倍）
+- 使用HTML5 `<details>` 元素实现可折叠的编码预览
+- 保持原有的下载功能和数据库存储逻辑不变
 
-3. **功能测试**：
-   - 保存教学资源
-   - 在前端下载文件
-   - 验证文件格式正确
+## 用户体验改进
 
-#### 预期效果
-- ❌ **修复前**：显示类似 `data:application/zip;base64,UEsDBBQACAAIAAAAAAAAAAAAAAAAAAAAAAALAAAAcGFnZV8xLmh0bWy8V1uP00...` 的长字符串
-- ✅ **修复后**：显示 `📁 已上传文件 Base64编码 (2.58MB)` 的友好格式
-
-### 🚀 部署说明
-
-修复已应用到以下文件：
-- `app/admin/page.tsx` - 主要修复文件
-- 无需数据库更改
-- 无需额外依赖
-
-### 💡 技术要点
-
-1. **检测逻辑**：使用 `downloadUrl.startsWith('data:')` 检测Base64格式
-2. **大小计算**：使用 `Math.round(length / 1024)` 计算KB大小
-3. **向后兼容**：普通URL链接显示保持不变
-4. **用户体验**：提供清除按钮方便重新上传
-
-这个修复确保了功能完整性的同时，大大改善了用户界面的美观度和可用性。 
+- ✅ 页面显示更整洁
+- ✅ 一眼能看出文件类型和大小
+- ✅ 减少页面滚动
+- ✅ 保留完整信息访问能力
+- ✅ 响应式适配移动端 

@@ -13,6 +13,11 @@ export default function ResourcesSection() {
   const [allResources, setAllResources] = useState<any[]>([])
   const [showRequestModal, setShowRequestModal] = useState(false)
   const [mounted, setMounted] = useState(false)
+  
+  // 分页状态 - 不影响现有功能
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage] = useState(4) // 每页显示4个资源
+  const [showAllMode, setShowAllMode] = useState(false) // 是否显示全部模式
 
   useEffect(() => {
     setMounted(true)
@@ -111,6 +116,12 @@ export default function ResourcesSection() {
     return count.toString()
   }
 
+  // 分页逻辑
+  const totalPages = Math.ceil(allResources.length / itemsPerPage)
+  const currentResources = showAllMode 
+    ? allResources // 显示全部模式：显示所有资源
+    : allResources.slice(0, currentPage * itemsPerPage) // 分页模式：显示前N页的内容
+
   return (
     <section id="resources" className="py-16 bg-white/50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -130,7 +141,7 @@ export default function ResourcesSection() {
         </motion.div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
-          {allResources.map((resource, index) => (
+          {currentResources.map((resource, index) => (
             <motion.div
               key={resource.id}
               initial={{ opacity: 0, y: 20 }}
@@ -191,6 +202,58 @@ export default function ResourcesSection() {
             </motion.div>
           ))}
         </div>
+
+        {/* 分页控制 - 只在有多页内容时显示 */}
+        {allResources.length > itemsPerPage && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.3 }}
+            viewport={{ once: true }}
+            className="flex flex-col items-center gap-4 mt-8"
+          >
+            {!showAllMode && currentResources.length < allResources.length && (
+              <div className="flex flex-col sm:flex-row items-center gap-3">
+                <p className="text-sm text-gray-600">
+                  显示 <span className="font-semibold text-indigo-600">{currentResources.length}</span> / 
+                  <span className="font-semibold">{allResources.length}</span> 个教学资源
+                </p>
+                <div className="flex gap-2">
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setCurrentPage(prev => prev + 1)}
+                    className="btn-bounce px-4 py-2 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-lg font-medium shadow-lg hover:shadow-xl transition-all duration-300"
+                  >
+                    加载更多 ({allResources.length - currentResources.length})
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setShowAllMode(true)}
+                    className="btn-bounce px-4 py-2 border-2 border-indigo-600 text-indigo-600 rounded-lg font-medium hover:bg-indigo-600 hover:text-white transition-all duration-300"
+                  >
+                    显示全部
+                  </motion.button>
+                </div>
+              </div>
+            )}
+            
+            {showAllMode && (
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  setShowAllMode(false)
+                  setCurrentPage(1)
+                }}
+                className="btn-bounce px-4 py-2 border-2 border-gray-400 text-gray-600 rounded-lg font-medium hover:bg-gray-100 transition-all duration-300"
+              >
+                收起显示
+              </motion.button>
+            )}
+          </motion.div>
+        )}
 
         {/* 更多资源 */}
         <motion.div

@@ -19,6 +19,45 @@ const modules = [
   { key: 'analytics', name: '数据统计', desc: '查看网站访问统计和用户行为分析', icon: '📊' },
 ]
 
+// 添加显示下载URL的工具函数
+const formatDownloadUrl = (url: string, maxLength: number = 50): { display: string, type: 'base64' | 'url', preview?: string } => {
+  if (!url) return { display: '无', type: 'url' }
+  
+  // 检查是否是base64格式
+  if (url.startsWith('data:')) {
+    const parts = url.split(',')
+    if (parts.length === 2) {
+      const mimeType = parts[0].split(':')[1]?.split(';')[0] || '未知格式'
+      const sizeInBytes = Math.ceil(parts[1].length * 0.75) // base64编码后大小约为原文件的4/3倍
+      const sizeFormatted = sizeInBytes > 1024 * 1024 
+        ? `${(sizeInBytes / (1024 * 1024)).toFixed(1)}MB`
+        : sizeInBytes > 1024 
+        ? `${(sizeInBytes / 1024).toFixed(1)}KB`
+        : `${sizeInBytes}B`
+      
+      return {
+        display: `📎 上传文件 (${mimeType}, ${sizeFormatted})`,
+        type: 'base64',
+        preview: url.substring(0, 100) + '...'
+      }
+    }
+  }
+  
+  // 普通URL处理
+  if (url.length > maxLength) {
+    return {
+      display: url.substring(0, maxLength) + '...',
+      type: 'url',
+      preview: url
+    }
+  }
+  
+  return {
+    display: url,
+    type: 'url'
+  }
+}
+
 const defaultAgent = { 
   name: '', 
   description: '', 
@@ -1513,7 +1552,35 @@ export default function AdminPage() {
                   <span className="text-gray-400">下载量: {r.downloads}</span>
                 </div>
                 {r.downloadUrl && (
-                  <a href={r.downloadUrl} target="_blank" className="text-xs text-indigo-400 hover:underline break-all block mt-1">{r.downloadUrl}</a>
+                  <div className="mt-1">
+                    {(() => {
+                      const urlInfo = formatDownloadUrl(r.downloadUrl)
+                      return (
+                        <div className="flex items-center gap-2">
+                          {urlInfo.type === 'base64' ? (
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs bg-green-50 text-green-700 px-2 py-1 rounded">{urlInfo.display}</span>
+                              <details className="group">
+                                <summary className="text-xs text-indigo-400 hover:underline cursor-pointer">查看编码</summary>
+                                <div className="mt-1 p-2 bg-gray-50 rounded text-xs font-mono text-gray-600 max-w-md break-all">
+                                  {urlInfo.preview}
+                                </div>
+                              </details>
+                            </div>
+                          ) : (
+                            <a 
+                              href={r.downloadUrl} 
+                              target="_blank" 
+                              className="text-xs text-indigo-400 hover:underline break-all"
+                              title={urlInfo.preview || r.downloadUrl}
+                            >
+                              {urlInfo.display}
+                            </a>
+                          )}
+                        </div>
+                      )
+                    })()}
+                  </div>
                 )}
               </div>
               <div className="flex gap-2">
@@ -1577,6 +1644,40 @@ export default function AdminPage() {
             className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-indigo-200" 
           />
           <p className="text-xs text-gray-500 mt-1">支持网盘链接、CDN链接等任何可直接下载的链接</p>
+          
+          {/* 当前下载链接预览 */}
+          {form.downloadUrl && (
+            <div className="mt-2 p-3 bg-gray-50 rounded">
+              <div className="text-sm text-gray-700 mb-1">当前下载链接:</div>
+              {(() => {
+                const urlInfo = formatDownloadUrl(form.downloadUrl)
+                return (
+                  <div className="flex items-center gap-2">
+                    {urlInfo.type === 'base64' ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs bg-green-50 text-green-700 px-2 py-1 rounded border">{urlInfo.display}</span>
+                        <details className="group">
+                          <summary className="text-xs text-indigo-400 hover:underline cursor-pointer">查看编码预览</summary>
+                          <div className="mt-1 p-2 bg-white rounded text-xs font-mono text-gray-600 max-w-md break-all border">
+                            {urlInfo.preview}
+                          </div>
+                        </details>
+                      </div>
+                    ) : (
+                      <a 
+                        href={form.downloadUrl} 
+                        target="_blank" 
+                        className="text-xs text-indigo-400 hover:underline break-all"
+                        title={urlInfo.preview || form.downloadUrl}
+                      >
+                        {urlInfo.display}
+                      </a>
+                    )}
+                  </div>
+                )
+              })()}
+            </div>
+          )}
         </div>
 
         <div className="flex gap-3 justify-end">
