@@ -198,10 +198,49 @@ export default function FileUploadComponent({
       )}
 
       {uploadMethod === 'base64' && (
-        <div className="text-xs text-gray-500 bg-gray-50 p-3 rounded-lg">
-          <strong>提示:</strong> 文件将转换为base64格式存储在浏览器中。建议文件大小控制在5MB以内以获得最佳性能。
+        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <p className="text-sm text-blue-700">
+            <strong>提示:</strong> 文件将以Base64格式存储，下载时会自动转换为原始格式
+          </p>
         </div>
       )}
     </div>
+  )
+}
+
+// 下载组件：处理Base64编码的文件下载
+export function DownloadButton({ 
+  downloadUrl, 
+  fileName, 
+  className = "px-3 py-1 text-sm rounded bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors" 
+}: { 
+  downloadUrl: string
+  fileName: string 
+  className?: string 
+}) {
+  const handleDownload = () => {
+    try {
+      if (downloadUrl.startsWith('data:')) {
+        // 处理Base64编码的文件
+        const link = document.createElement('a')
+        link.href = downloadUrl
+        link.download = fileName
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+      } else {
+        // 处理普通URL
+        window.open(downloadUrl, '_blank')
+      }
+    } catch (error) {
+      console.error('下载失败:', error)
+      alert('下载失败，请检查文件链接是否有效')
+    }
+  }
+
+  return (
+    <button onClick={handleDownload} className={className}>
+      下载
+    </button>
   )
 } 

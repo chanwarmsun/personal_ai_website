@@ -4,9 +4,10 @@ import React, { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import FileUploadComponent from '../../components/FileUploadComponent'
-import { agentOperations, promptOperations, resourceOperations, requestOperations } from '../../lib/database'
+import { agentOperations, promptOperations, resourceOperations, requestOperations, testConnection } from '../../lib/database'
 import { carouselOperations, defaultContentOperations } from '../../lib/carousel-operations'
 import { defaultContentProvider } from '../../lib/default-content-provider'
+import { DatabaseConnectionManager } from '../../lib/supabase'
 
 const modules = [
   { key: 'carousel', name: '轮播管理', desc: '管理首页轮播图片，支持增删改查', icon: '🎠' },
@@ -69,6 +70,11 @@ export default function AdminPage() {
   const defaultImageInputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
 
+  // 数据库连接状态管理
+  const [dbConnectionStatus, setDbConnectionStatus] = useState<'connected' | 'disconnected' | 'connecting'>('connecting')
+  const [dbStatusMessage, setDbStatusMessage] = useState<string>('检查连接中...')
+  const connectionManager = DatabaseConnectionManager.getInstance()
+
   // 检查登录状态
   useEffect(() => {
     const token = localStorage.getItem('admin_token')
@@ -76,6 +82,10 @@ export default function AdminPage() {
       router.push('/admin-login')
       return
     }
+    
+    // 检查数据库连接
+    checkDatabaseConnection()
+    
     // 加载数据
     loadCarousel()
     loadAgents()
@@ -83,7 +93,44 @@ export default function AdminPage() {
     loadResources()
     loadRequests()
     loadDefaultContent()
+    
+    // 定期检查数据库连接状态
+    const connectionInterval = setInterval(checkDatabaseConnection, 30000)
+    
+    return () => clearInterval(connectionInterval)
   }, [])
+
+  // 数据库连接检查函数
+  const checkDatabaseConnection = async () => {
+    try {
+      console.log('🔄 开始检查数据库连接...')
+      setDbConnectionStatus('connecting')
+      setDbStatusMessage('检查数据库连接...')
+      
+      // 添加超时保护，防止卡住
+      const timeoutPromise = new Promise<boolean>((_, reject) => 
+        setTimeout(() => reject(new Error('连接检查超时')), 10000)
+      )
+      
+      const connectionPromise = connectionManager.checkConnection()
+      
+      const isConnected = await Promise.race([connectionPromise, timeoutPromise])
+      
+      if (isConnected) {
+        console.log('✅ 数据库连接检查成功')
+        setDbConnectionStatus('connected')
+        setDbStatusMessage('数据库连接正常')
+      } else {
+        console.log('❌ 数据库连接检查失败')
+        setDbConnectionStatus('disconnected')
+        setDbStatusMessage('数据库连接失败，请检查网络或Supabase配置')
+      }
+    } catch (error: any) {
+      console.error('💥 数据库连接检查异常:', error)
+      setDbConnectionStatus('disconnected')
+      setDbStatusMessage(`数据库连接异常: ${error.message}`)
+    }
+  }
 
   const loadAgents = async () => {
     try {
@@ -92,60 +139,61 @@ export default function AdminPage() {
       console.log('📊 从数据库获取的智能体:', dbAgents)
       setAgents(dbAgents)
       console.log('✅ 智能体状态已更新')
-    } catch (error) {
-      console.error('加载智能体失败:', error)
-      // 回退到localStorage
-      const saved = localStorage.getItem('custom_agents')
-      if (saved) {
-        setAgents(JSON.parse(saved))
-      }
+    } catch (error: any) {
+      console.error('❌ 加载智能体失败:', error)
+      alert(`加载智能体失败: ${error.message}`)
+      // 不再回退到localStorage，确保全部使用数据库
+      setAgents([])
     }
   }
 
   const loadPrompts = async () => {
     try {
+      console.log('🔍 开始加载提示词数据...')
       const dbPrompts = await promptOperations.getAll()
+      console.log('📊 从数据库获取的提示词:', dbPrompts)
       setPrompts(dbPrompts)
-    } catch (error) {
-      console.error('加载提示词失败:', error)
-      // 回退到localStorage
-      const saved = localStorage.getItem('custom_prompts')
-      if (saved) {
-        setPrompts(JSON.parse(saved))
-      }
+      console.log('✅ 提示词状态已更新')
+    } catch (error: any) {
+      console.error('❌ 加载提示词失败:', error)
+      alert(`加载提示词失败: ${error.message}`)
+      // 不再回退到localStorage，确保全部使用数据库
+      setPrompts([])
     }
   }
 
   const loadResources = async () => {
     try {
+      console.log('🔍 开始加载教学资源数据...')
       const dbResources = await resourceOperations.getAll()
+      console.log('📊 从数据库获取的教学资源:', dbResources)
       // 处理字段映射：download_url -> downloadUrl
       const formattedResources = dbResources.map(resource => ({
         ...resource,
         downloadUrl: resource.download_url
       }))
       setResources(formattedResources)
-    } catch (error) {
-      console.error('加载教学资源失败:', error)
-      // 回退到localStorage
-      const saved = localStorage.getItem('custom_resources')
-      if (saved) {
-        setResources(JSON.parse(saved))
-      }
+      console.log('✅ 教学资源状态已更新')
+    } catch (error: any) {
+      console.error('❌ 加载教学资源失败:', error)
+      alert(`加载教学资源失败: ${error.message}`)
+      // 不再回退到localStorage，确保全部使用数据库
+      setResources([])
     }
   }
 
   const loadRequests = async () => {
     try {
+      console.log('🔍 开始加载定制申请数据...')
       const dbRequests = await requestOperations.getAll()
+      console.log('📊 从数据库获取的定制申请:', dbRequests)
       setRequests(dbRequests)
-    } catch (error) {
-      console.error('加载定制申请失败:', error)
-      // 回退到localStorage
-      const saved = localStorage.getItem('custom_requests')
-      if (saved) {
-        setRequests(JSON.parse(saved))
-      }
+      console.log('✅ 定制申请状态已更新')
+    } catch (error: any) {
+      console.error('❌ 加载定制申请失败:', error)
+      alert(`加载定制申请失败: ${error.message}`)
+      // 不再回退到localStorage，确保全部使用数据库
+      setRequests([])
     }
   }
 
@@ -239,23 +287,8 @@ export default function AdminPage() {
     }
   }
 
-  const saveAgents = async (newAgents: any[]) => {
-    setAgents(newAgents)
-    // 同时保存到localStorage作为备份
-    localStorage.setItem('custom_agents', JSON.stringify(newAgents))
-  }
-
-  const savePrompts = async (newPrompts: any[]) => {
-    setPrompts(newPrompts)
-    // 同时保存到localStorage作为备份
-    localStorage.setItem('custom_prompts', JSON.stringify(newPrompts))
-  }
-
-  const saveResources = async (newResources: any[]) => {
-    setResources(newResources)
-    // 同时保存到localStorage作为备份
-    localStorage.setItem('custom_resources', JSON.stringify(newResources))
-  }
+  // 移除localStorage保存逻辑，所有数据都通过数据库操作
+  // 这些函数已不再需要，直接通过数据库CRUD操作管理数据
 
   const saveCarousel = async (newCarousel: any[]) => {
     setCarousel(newCarousel)
@@ -508,44 +541,36 @@ export default function AdminPage() {
           }
           
           try {
-            // 确保不包含id字段
-            const { id, ...agentData } = cleanForm
-            console.log('📝 清理后的数据:', JSON.stringify(agentData, null, 2))
+            // 构建正确的智能体数据结构（只包含数据库表中的字段）
+            const agentData = {
+              name: cleanForm.name.trim(),
+              description: cleanForm.description.trim(),
+              image: cleanForm.image || '',
+              type: cleanForm.type || 'chat',
+              url: cleanForm.url.trim(),
+              tags: Array.isArray(cleanForm.tags) ? cleanForm.tags : []
+            }
+            
+            console.log('📝 智能体数据结构:', JSON.stringify(agentData, null, 2))
             console.log('📡 开始调用数据库创建操作...')
             
-            // 增加超时保护
-            const createPromise = agentOperations.create(agentData)
-            const timeoutPromise = new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('操作超时，请检查网络连接')), 15000)
-            )
+            // 使用正确的数据结构创建智能体
+            const created = await agentOperations.create(agentData)
+            console.log('✅ 智能体创建成功:', created)
             
-            const created = await Promise.race([createPromise, timeoutPromise])
-            console.log('✅ 数据库返回结果:', created)
+            // 重新加载数据
+            await loadAgents()
             
-            if (created) {
-              console.log('🔄 开始重新加载智能体数据...')
-              await loadAgents()
-              console.log('🔄 重新加载智能体完成')
-              
-              // 重置表单状态，确保下次输入正常
-              setForm(getCurrentDefault())
-              setTagInput('')
-              if (fileInputRef.current) fileInputRef.current.value = ''
-              
-              console.log('✅ 智能体创建成功，表单已重置')
-              alert('智能体创建成功！')
-              return // 提早返回，避免重复重置表单
-            } else {
-              console.error('❌ 创建返回null，但没有抛出异常')
-              alert('智能体创建失败：服务器返回空结果，请检查网络连接或重试')
-            }
+            // 重置表单状态
+            setForm(getCurrentDefault())
+            setTagInput('')
+            if (fileInputRef.current) fileInputRef.current.value = ''
+            
+            alert('智能体创建成功！')
+            return
           } catch (createError: any) {
-            console.error('💥 创建智能体时发生异常:', createError)
-            console.error('异常类型:', typeof createError)
-            console.error('异常信息:', createError.message || '未知错误')
-            console.error('原始表单数据:', JSON.stringify(form, null, 2))
-            console.error('处理后数据:', JSON.stringify(cleanForm, null, 2))
-            alert(`智能体创建失败：${createError.message || '未知错误'}\n请检查控制台获取详细信息`)
+            console.error('💥 创建智能体失败:', createError)
+            alert(`智能体创建失败：${createError.message}`)
           }
         } else if (active === 'prompts') {
           console.log('📝 创建提示词:', form)
@@ -565,47 +590,34 @@ export default function AdminPage() {
           }
           
           try {
-            // 确保不包含id字段，并移除数据库中不存在的字段
-            const { id, tags, ...promptData } = cleanForm
-            // 确保包含downloads字段，默认为0
-            const finalData = {
-              ...promptData,
-              downloads: 0
+            // 构建正确的提示词数据结构（只包含数据库表中的字段）
+            const promptData = {
+              title: cleanForm.title.trim(),
+              description: cleanForm.description.trim(),
+              content: cleanForm.content.trim(),
+              tags: Array.isArray(cleanForm.tags) ? cleanForm.tags : [],
+              downloads: cleanForm.downloads || 0
             }
-            console.log('📝 清理后的数据:', JSON.stringify(finalData, null, 2))
-            console.log('📡 开始调用数据库创建操作...')
             
-            // 增加超时保护
-            const createPromise = promptOperations.create(finalData)
-            const timeoutPromise = new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('操作超时，请检查网络连接')), 15000)
-            )
+            console.log('📝 提示词数据结构:', JSON.stringify(promptData, null, 2))
             
-            const created = await Promise.race([createPromise, timeoutPromise])
-            console.log('✅ 数据库返回结果:', created)
+            // 使用正确的数据结构创建提示词
+            const created = await promptOperations.create(promptData)
+            console.log('✅ 提示词创建成功:', created)
             
-            if (created) {
-              console.log('🔄 开始重新加载提示词数据...')
-              await loadPrompts()
-              console.log('🔄 重新加载提示词完成')
-              
-              // 重置表单状态，确保下次输入正常
-              setForm(getCurrentDefault())
-              setTagInput('')
-              if (fileInputRef.current) fileInputRef.current.value = ''
-              
-              console.log('✅ 提示词创建成功，表单已重置')
-              alert('提示词创建成功！')
-              return // 提早返回，避免重复重置表单
-            } else {
-              console.error('❌ 创建返回null，但没有抛出异常')
-              alert('提示词创建失败：服务器返回空结果，请检查控制台错误信息')
-            }
+            // 重新加载数据
+            await loadPrompts()
+            
+            // 重置表单状态
+            setForm(getCurrentDefault())
+            setTagInput('')
+            if (fileInputRef.current) fileInputRef.current.value = ''
+            
+            alert('提示词创建成功！')
+            return
           } catch (createError: any) {
-            console.error('💥 创建提示词时发生异常:', createError)
-            console.error('异常类型:', typeof createError)
-            console.error('异常信息:', createError.message || '未知错误')
-            alert(`提示词创建失败：${createError.message || '未知错误'}`)
+            console.error('💥 创建提示词失败:', createError)
+            alert(`提示词创建失败：${createError.message}`)
           }
         } else {
           console.log('📝 创建教学资源:', form)
@@ -621,50 +633,36 @@ export default function AdminPage() {
           }
           
           try {
-            // 确保不包含id字段，并处理字段映射，确保所有必需字段都存在
-            const { id, downloadUrl, download_url, ...resourceData } = cleanForm
-            const finalData = {
-              ...resourceData,
-              download_url: downloadUrl || download_url || '',
+            // 构建正确的教学资源数据结构（只包含数据库表中的字段）
+            const resourceData = {
+              title: cleanForm.title.trim(),
+              description: cleanForm.description.trim(),
               type: cleanForm.type || '课件',
               difficulty: cleanForm.difficulty || '教师用',
-              size: cleanForm.size || '未知',
-              downloads: 0
+              size: cleanForm.size || '',
+              download_url: cleanForm.downloadUrl || cleanForm.download_url || '',
+              downloads: cleanForm.downloads || 0
             }
-            console.log('📝 清理后的数据:', JSON.stringify(finalData, null, 2))
-            console.log('📡 开始调用数据库创建操作...')
             
-            // 增加超时保护
-            const createPromise = resourceOperations.create(finalData)
-            const timeoutPromise = new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('操作超时，请检查网络连接')), 15000)
-            )
+            console.log('📝 教学资源数据结构:', JSON.stringify(resourceData, null, 2))
             
-            const created = await Promise.race([createPromise, timeoutPromise])
-            console.log('✅ 数据库返回结果:', created)
+            // 使用正确的数据结构创建教学资源
+            const created = await resourceOperations.create(resourceData)
+            console.log('✅ 教学资源创建成功:', created)
             
-            if (created) {
-              console.log('🔄 开始重新加载教学资源数据...')
-              await loadResources()
-              console.log('🔄 重新加载教学资源完成')
-              
-              // 重置表单状态，确保下次输入正常
-              setForm(getCurrentDefault())
-              setTagInput('')
-              if (fileInputRef.current) fileInputRef.current.value = ''
-              
-              console.log('✅ 教学资源创建成功，表单已重置')
-              alert('教学资源创建成功！')
-              return // 提早返回，避免重复重置表单
-            } else {
-              console.error('❌ 创建返回null，但没有抛出异常')
-              alert('教学资源创建失败：服务器返回空结果，请检查控制台错误信息')
-            }
+            // 重新加载数据
+            await loadResources()
+            
+            // 重置表单状态
+            setForm(getCurrentDefault())
+            setTagInput('')
+            if (fileInputRef.current) fileInputRef.current.value = ''
+            
+            alert('教学资源创建成功！')
+            return
           } catch (createError: any) {
-            console.error('💥 创建教学资源时发生异常:', createError)
-            console.error('异常类型:', typeof createError)
-            console.error('异常信息:', createError.message || '未知错误')
-            alert(`教学资源创建失败：${createError.message || '未知错误'}`)
+            console.error('💥 创建教学资源失败:', createError)
+            alert(`教学资源创建失败：${createError.message}`)
           }
         }
       }
@@ -711,23 +709,14 @@ export default function AdminPage() {
             await loadCarousel()
           }
         } else if (active === 'agents') {
-          const success = await agentOperations.delete(item.id)
-          if (success) {
-            // 直接重新加载数据，不需要手动更新状态
-            await loadAgents()
-          }
+          await agentOperations.delete(item.id)
+          await loadAgents()
         } else if (active === 'prompts') {
-          const success = await promptOperations.delete(item.id)
-          if (success) {
-            // 直接重新加载数据，不需要手动更新状态
-            await loadPrompts()
-          }
+          await promptOperations.delete(item.id)
+          await loadPrompts()
         } else {
-          const success = await resourceOperations.delete(item.id)
-          if (success) {
-            // 直接重新加载数据，不需要手动更新状态
-            await loadResources()
-          }
+          await resourceOperations.delete(item.id)
+          await loadResources()
         }
         
         setEditingIndex(null)
@@ -1240,14 +1229,32 @@ export default function AdminPage() {
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">下载链接</label>
-                          <input
-                            name="downloadUrl"
-                            value={defaultEditForm.downloadUrl || ''}
-                            onChange={handleDefaultFormChange}
-                            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-200"
-                            placeholder="输入下载链接"
-                          />
+                          <label className="block text-sm font-medium text-gray-700 mb-2">文件/下载链接</label>
+                          <div className="space-y-3">
+                            {/* 文件上传组件 */}
+                            <FileUploadComponent
+                              onFileReady={(fileUrl, fileName, fileSize) => {
+                                setDefaultEditForm((prev: any) => ({
+                                  ...prev,
+                                  downloadUrl: fileUrl,
+                                  fileName: fileName,
+                                  size: fileSize
+                                }))
+                              }}
+                              maxSize={100}
+                              acceptedTypes={['.pdf', '.doc', '.docx', '.ppt', '.pptx', '.xls', '.xlsx', '.zip', '.rar', '.txt', '.mp4', '.avi', '.mp3', '.wav', '.jpg', '.png', '.gif', '.bmp']}
+                              uploadMethod="base64"
+                            />
+                            {/* 或手动输入链接 */}
+                            <div className="text-center text-gray-500 text-sm">或</div>
+                            <input
+                              name="downloadUrl"
+                              value={defaultEditForm.downloadUrl || ''}
+                              onChange={handleDefaultFormChange}
+                              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-200"
+                              placeholder="手动输入下载链接"
+                            />
+                          </div>
                         </div>
                       </div>
                       <div className="space-y-4">
@@ -1536,10 +1543,7 @@ export default function AdminPage() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <input name="downloads" type="number" value={form.downloads} onChange={handleChange} placeholder="下载量" className="px-3 py-2 border rounded focus:ring-2 focus:ring-indigo-200" />
-          <div className="flex items-center">
-            <span className="text-sm text-gray-600 mr-2">文件大小:</span>
-            <span className="text-sm text-gray-700">{form.size || '未设置'}</span>
-          </div>
+          <input name="size" value={form.size} onChange={handleChange} placeholder="文件大小 (例如: 2.5MB)" className="px-3 py-2 border rounded focus:ring-2 focus:ring-indigo-200" />
         </div>
         
         {/* 文件上传区域 */}
@@ -1699,6 +1703,41 @@ export default function AdminPage() {
   return (
     <div className="p-8">
       <div className="max-w-4xl mx-auto">
+        {/* 数据库连接状态栏 */}
+        <div className={`mb-4 p-3 rounded-lg border ${
+          dbConnectionStatus === 'connected' ? 'bg-green-50 border-green-200' :
+          dbConnectionStatus === 'connecting' ? 'bg-yellow-50 border-yellow-200' :
+          'bg-red-50 border-red-200'
+        }`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className={`w-3 h-3 rounded-full ${
+                dbConnectionStatus === 'connected' ? 'bg-green-500' :
+                dbConnectionStatus === 'connecting' ? 'bg-yellow-500 animate-pulse' :
+                'bg-red-500'
+              }`}></div>
+              <span className={`font-medium ${
+                dbConnectionStatus === 'connected' ? 'text-green-700' :
+                dbConnectionStatus === 'connecting' ? 'text-yellow-700' :
+                'text-red-700'
+              }`}>
+                数据库状态: {dbStatusMessage}
+              </span>
+            </div>
+            <button
+              onClick={checkDatabaseConnection}
+              disabled={dbConnectionStatus === 'connecting'}
+              className={`text-xs px-3 py-1 rounded hover:opacity-80 ${
+                dbConnectionStatus === 'connected' ? 'bg-green-100 text-green-700' :
+                dbConnectionStatus === 'connecting' ? 'bg-yellow-100 text-yellow-700' :
+                'bg-red-100 text-red-700'
+              }`}
+            >
+              {dbConnectionStatus === 'connecting' ? '检查中...' : '重新检查'}
+            </button>
+          </div>
+        </div>
+        
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold text-indigo-700">管理后台</h1>
           <button onClick={logout} className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition">退出登录</button>

@@ -7,6 +7,7 @@ import CustomRequestModal from './CustomRequestModal'
 import { resourceOperations } from '../lib/database'
 import { analytics } from '../lib/analytics'
 import { defaultContentProvider } from '../lib/default-content-provider'
+import { DownloadButton } from './FileUploadComponent'
 
 export default function ResourcesSection() {
   const [allResources, setAllResources] = useState<any[]>([])
@@ -50,13 +51,18 @@ export default function ResourcesSection() {
     // 记录资源下载统计
     analytics.trackResourceDownload(resource.title)
     
-    // 创建下载链接
-    const link = document.createElement('a')
-    link.href = resource.downloadUrl
-    link.download = `${resource.title}.${resource.downloadUrl.split('.').pop()}`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
+    if (resource.downloadUrl.startsWith('data:')) {
+      // 处理Base64编码的文件
+      const link = document.createElement('a')
+      link.href = resource.downloadUrl
+      link.download = resource.title
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    } else {
+      // 处理普通URL
+      window.open(resource.downloadUrl, '_blank')
+    }
   }
 
   const getDifficultyColor = (difficulty: string) => {
