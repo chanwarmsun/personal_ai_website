@@ -4,11 +4,6 @@
   "buildCommand": "npm run build",
   "installCommand": "npm install --legacy-peer-deps",
   "outputDirectory": ".next",
-  "functions": {
-    "app/**/*.{ts,tsx}": {
-      "runtime": "nodejs18.x"
-    }
-  },
   "cleanUrls": true,
   "trailingSlash": false,
   "headers": [
