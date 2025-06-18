@@ -1,8 +1,15 @@
-import { supabase, withRetry, DatabaseConnectionManager } from './supabase'
+import { supabase, withRetry, DatabaseConnectionManager, smartConnection, keepAlive } from './supabase'
 import type { Agent, Prompt, TeachingResource, CustomRequest } from './supabase'
+import { dbLogger } from './logger'
 
 // 连接管理器实例
 const connectionManager = DatabaseConnectionManager.getInstance()
+
+// 启动保活机制
+if (typeof window !== 'undefined') {
+  keepAlive.start()
+  dbLogger.log('INFO', 'KEEPALIVE', '客户端启动保活机制')
+}
 
 // 增强的数据库操作基类
 class BaseOperations<T> {
@@ -12,113 +19,207 @@ class BaseOperations<T> {
     this.tableName = tableName
   }
 
-  // 检查连接并执行操作
+  // 检查连接并执行操作（智能切换）
   protected async executeWithConnection<R>(operation: () => Promise<R>): Promise<R> {
-    const isConnected = await connectionManager.checkConnection()
-    if (!isConnected) {
-      throw new Error(`数据库连接失败，无法执行 ${this.tableName} 操作`)
-    }
+    const connectionMode = await smartConnection.getOptimalConnection()
     
-    return await withRetry(operation, 3, 1000)
+    if (connectionMode === 'api') {
+      console.log(`🔄 使用API模式执行 ${this.tableName} 操作`)
+      return await this.executeWithAPI()
+    } else {
+      console.log(`🔄 使用SDK模式执行 ${this.tableName} 操作`)
+      const isConnected = await connectionManager.checkConnection()
+      if (!isConnected) {
+        throw new Error(`数据库连接失败，无法执行 ${this.tableName} 操作`)
+      }
+      
+      return await withRetry(operation, 3, 1000)
+    }
+  }
+
+  // API模式执行器
+  protected async executeWithAPI<R>(): Promise<R> {
+    const apiClient = smartConnection.getApiClient()
+    
+    // 这里需要子类实现具体的API操作逻辑
+    throw new Error('子类需要实现executeWithAPI方法')
   }
 
   // 通用获取所有记录
   async getAll(): Promise<T[]> {
-    return this.executeWithConnection(async () => {
-      console.log(`🔍 开始获取 ${this.tableName} 数据...`)
+    const timer = dbLogger.startTimer(`获取${this.tableName}数据`)
+    const connectionMode = await smartConnection.getOptimalConnection()
+    
+    if (connectionMode === 'api') {
+      dbLogger.log('DEBUG', 'QUERY', `API模式：开始获取 ${this.tableName} 数据`, {}, { 
+        connectionMode: 'api', 
+        tableName: this.tableName, 
+        operation: 'getAll' 
+      })
       
-      const { data, error } = await supabase
-        .from(this.tableName)
-        .select('*')
-        .order('created_at', { ascending: false })
-      
-      if (error) {
-        console.error(`❌ 获取 ${this.tableName} 失败:`, error)
-        throw new Error(`获取 ${this.tableName} 失败: ${error.message}`)
+      try {
+        const apiClient = smartConnection.getApiClient()
+        const data = await apiClient.get(this.tableName, '*')
+        const duration = timer()
+        
+        dbLogger.logDatabaseOperation(this.tableName, 'getAll', true, { 
+          recordCount: data?.length || 0,
+          mode: 'api'
+        }, duration)
+        
+        return data || []
+      } catch (error: any) {
+        timer()
+        dbLogger.logDatabaseOperation(this.tableName, 'getAll', false, { 
+          mode: 'api',
+          error: error.message 
+        })
+        throw error
       }
-      
-      console.log(`✅ 成功获取 ${data?.length || 0} 条 ${this.tableName} 记录`)
-      return data || []
-    })
+    } else {
+      return this.executeWithConnection(async () => {
+        dbLogger.log('DEBUG', 'QUERY', `SDK模式：开始获取 ${this.tableName} 数据`, {}, { 
+          connectionMode: 'sdk', 
+          tableName: this.tableName, 
+          operation: 'getAll' 
+        })
+        
+        const { data, error } = await supabase
+          .from(this.tableName)
+          .select('*')
+          .order('created_at', { ascending: false })
+        
+        const duration = timer()
+        
+        if (error) {
+          dbLogger.logDatabaseOperation(this.tableName, 'getAll', false, { 
+            mode: 'sdk',
+            error: error.message,
+            errorCode: error.code 
+          }, duration)
+          throw new Error(`获取 ${this.tableName} 失败: ${error.message}`)
+        }
+        
+        dbLogger.logDatabaseOperation(this.tableName, 'getAll', true, { 
+          recordCount: data?.length || 0,
+          mode: 'sdk'
+        }, duration)
+        
+        return data || []
+      })
+    }
   }
 
   // 通用创建记录
   async create(record: Omit<T, 'id' | 'created_at'>): Promise<T | null> {
-    return this.executeWithConnection(async () => {
-      console.log(`📝 开始创建 ${this.tableName} 记录:`, record)
-      
-      const { data, error } = await supabase
-        .from(this.tableName)
-        .insert([record])
-        .select()
-        .single()
-      
-      if (error) {
-        console.error(`❌ 创建 ${this.tableName} 失败:`, error)
-        throw new Error(`创建 ${this.tableName} 失败: ${error.message}`)
-      }
-      
-      console.log(`✅ 成功创建 ${this.tableName}:`, data)
-      return data
-    })
+    const connectionMode = await smartConnection.getOptimalConnection()
+    
+    if (connectionMode === 'api') {
+      console.log(`📝 API模式：创建 ${this.tableName} 记录:`, record)
+      const apiClient = smartConnection.getApiClient()
+      const data = await apiClient.insert(this.tableName, record)
+      console.log(`✅ API模式：成功创建 ${this.tableName}:`, data)
+      return Array.isArray(data) ? data[0] : data
+    } else {
+      return this.executeWithConnection(async () => {
+        console.log(`📝 SDK模式：开始创建 ${this.tableName} 记录:`, record)
+        
+        const { data, error } = await supabase
+          .from(this.tableName)
+          .insert([record])
+          .select()
+          .single()
+        
+        if (error) {
+          console.error(`❌ 创建 ${this.tableName} 失败:`, error)
+          throw new Error(`创建 ${this.tableName} 失败: ${error.message}`)
+        }
+        
+        console.log(`✅ SDK模式：成功创建 ${this.tableName}:`, data)
+        return data
+      })
+    }
   }
 
   // 通用更新记录
   async update(id: string, updates: Partial<T>): Promise<T | null> {
-    return this.executeWithConnection(async () => {
-      console.log(`📝 开始更新 ${this.tableName} (ID: ${id}):`, updates)
-      
-      const { data, error } = await supabase
-        .from(this.tableName)
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single()
-      
-      if (error) {
-        console.error(`❌ 更新 ${this.tableName} 失败:`, error)
-        throw new Error(`更新 ${this.tableName} 失败: ${error.message}`)
-      }
-      
-      console.log(`✅ 成功更新 ${this.tableName}:`, data)
-      return data
-    })
+    const connectionMode = await smartConnection.getOptimalConnection()
+    
+    if (connectionMode === 'api') {
+      console.log(`📝 API模式：更新 ${this.tableName} (ID: ${id}):`, updates)
+      const apiClient = smartConnection.getApiClient()
+      const data = await apiClient.update(this.tableName, id, updates)
+      console.log(`✅ API模式：成功更新 ${this.tableName}:`, data)
+      return Array.isArray(data) ? data[0] : data
+    } else {
+      return this.executeWithConnection(async () => {
+        console.log(`📝 SDK模式：开始更新 ${this.tableName} (ID: ${id}):`, updates)
+        
+        const { data, error } = await supabase
+          .from(this.tableName)
+          .update(updates)
+          .eq('id', id)
+          .select()
+          .single()
+        
+        if (error) {
+          console.error(`❌ 更新 ${this.tableName} 失败:`, error)
+          throw new Error(`更新 ${this.tableName} 失败: ${error.message}`)
+        }
+        
+        console.log(`✅ SDK模式：成功更新 ${this.tableName}:`, data)
+        return data
+      })
+    }
   }
 
   // 通用删除记录
   async delete(id: string): Promise<boolean> {
-    return this.executeWithConnection(async () => {
-      console.log(`🗑️ 开始删除 ${this.tableName} (ID: ${id})`)
-      
-      const { error } = await supabase
-        .from(this.tableName)
-        .delete()
-        .eq('id', id)
-      
-      if (error) {
-        console.error(`❌ 删除 ${this.tableName} 失败:`, error)
-        throw new Error(`删除 ${this.tableName} 失败: ${error.message}`)
-      }
-      
-      console.log(`✅ 成功删除 ${this.tableName} (ID: ${id})`)
+    const connectionMode = await smartConnection.getOptimalConnection()
+    
+    if (connectionMode === 'api') {
+      console.log(`🗑️ API模式：删除 ${this.tableName} (ID: ${id})`)
+      const apiClient = smartConnection.getApiClient()
+      await apiClient.delete(this.tableName, id)
+      console.log(`✅ API模式：成功删除 ${this.tableName} (ID: ${id})`)
       return true
-    })
+    } else {
+      return this.executeWithConnection(async () => {
+        console.log(`🗑️ SDK模式：开始删除 ${this.tableName} (ID: ${id})`)
+        
+        const { error } = await supabase
+          .from(this.tableName)
+          .delete()
+          .eq('id', id)
+        
+        if (error) {
+          console.error(`❌ 删除 ${this.tableName} 失败:`, error)
+          throw new Error(`删除 ${this.tableName} 失败: ${error.message}`)
+        }
+        
+        console.log(`✅ SDK模式：成功删除 ${this.tableName} (ID: ${id})`)
+        return true
+      })
+    }
   }
 }
 
-// 测试数据库连接
+// 测试数据库连接（增强版）
 export async function testConnection(): Promise<boolean> {
   try {
     console.log('🔄 测试数据库连接...')
-    const isConnected = await connectionManager.checkConnection()
+    const connectionMode = await smartConnection.getOptimalConnection()
     
-    if (isConnected) {
-      console.log('✅ 数据库连接测试成功')
+    if (connectionMode === 'sdk') {
+      const isConnected = await connectionManager.checkConnection()
+      console.log(isConnected ? '✅ SDK连接测试成功' : '❌ SDK连接测试失败')
+      return isConnected
     } else {
-      console.log('❌ 数据库连接测试失败')
+      const apiClient = smartConnection.getApiClient()
+      const isConnected = await apiClient.testConnection()
+      console.log(isConnected ? '✅ API连接测试成功' : '❌ API连接测试失败')
+      return isConnected
     }
-    
-    return isConnected
   } catch (error: any) {
     console.error('💥 数据库连接测试异常:', error)
     return false

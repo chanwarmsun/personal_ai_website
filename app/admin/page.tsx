@@ -8,6 +8,7 @@ import { agentOperations, promptOperations, resourceOperations, requestOperation
 import { carouselOperations, defaultContentOperations } from '../../lib/carousel-operations'
 import { defaultContentProvider } from '../../lib/default-content-provider'
 import { DatabaseConnectionManager } from '../../lib/supabase'
+import { smartConnection } from '@/lib/supabase'
 
 const modules = [
   { key: 'carousel', name: '轮播管理', desc: '管理首页轮播图片，支持增删改查', icon: '🎠' },
@@ -17,6 +18,7 @@ const modules = [
   { key: 'default-content', name: '默认内容', desc: '编辑网站默认内容（智能体、提示词、资源）', icon: '📋' },
   { key: 'requests', name: '定制申请', desc: '查看用户定制申请，支持状态管理', icon: '📝' },
   { key: 'analytics', name: '数据统计', desc: '查看网站访问统计和用户行为分析', icon: '📊' },
+  { key: 'logs', name: '连接日志', desc: '查看数据库连接日志，排查连接问题', icon: '📋' },
 ]
 
 // 添加显示下载URL的工具函数
@@ -113,6 +115,79 @@ export default function AdminPage() {
   const [dbConnectionStatus, setDbConnectionStatus] = useState<'connected' | 'disconnected' | 'connecting'>('connecting')
   const [dbStatusMessage, setDbStatusMessage] = useState<string>('检查连接中...')
   const connectionManager = DatabaseConnectionManager.getInstance()
+
+  const [stats, setStats] = useState({
+    agents: 0,
+    prompts: 0,
+    resources: 0,
+    requests: 0
+  })
+  const [isLoading, setIsLoading] = useState(true)
+  const [connectionStatus, setConnectionStatus] = useState<{
+    isConnected: boolean
+    mode: 'sdk' | 'api'
+    lastCheck: Date | null
+  }>({
+    isConnected: false,
+    mode: 'sdk',
+    lastCheck: null
+  })
+
+  // 检查数据库连接状态
+  const checkConnectionStatus = async () => {
+    try {
+      const mode = await smartConnection.getOptimalConnection()
+      const isConnected = await testConnection()
+      setConnectionStatus({
+        isConnected,
+        mode,
+        lastCheck: new Date()
+      })
+    } catch (error) {
+      console.error('连接状态检查失败:', error)
+      setConnectionStatus({
+        isConnected: false,
+        mode: 'sdk',
+        lastCheck: new Date()
+      })
+    }
+  }
+
+  // 加载统计数据
+  const loadStats = async () => {
+    try {
+      setIsLoading(true)
+      const [agentsData, promptsData, resourcesData, requestsData] = await Promise.all([
+        agentOperations.getAll(),
+        promptOperations.getAll(),
+        resourceOperations.getAll(),
+        requestOperations.getAll()
+      ])
+      
+      setStats({
+        agents: agentsData.length,
+        prompts: promptsData.length,
+        resources: resourcesData.length,
+        requests: requestsData.length
+      })
+    } catch (error) {
+      console.error('加载统计数据失败:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadStats()
+    checkConnectionStatus()
+    
+    // 每30秒检查一次连接状态
+    const statusInterval = setInterval(checkConnectionStatus, 30000)
+    
+    return () => {
+      clearInterval(statusInterval)
+    }
+  }, [])
 
   // 检查登录状态
   useEffect(() => {
@@ -422,6 +497,12 @@ export default function AdminPage() {
     // 如果是analytics模块，直接跳转到专门的页面
     if (moduleKey === 'analytics') {
       router.push('/admin/analytics')
+      return
+    }
+    
+    // 如果是logs模块，直接跳转到日志页面
+    if (moduleKey === 'logs') {
+      window.open('/admin/logs', '_blank')
       return
     }
     
@@ -804,23 +885,63 @@ export default function AdminPage() {
         updatedContent.teachingResources[index] = { ...defaultEditForm }
       }
       
+      console.log('🔄 更新后的内容:', updatedContent)
+      
+      // 1. 首先尝试保存到数据库
       console.log('🔄 保存到数据库中...')
-      await saveDefaultContent(updatedContent)
+      const saveSuccess = await defaultContentOperations.save('website_default', updatedContent)
       
-      console.log('🔄 清除前端缓存...')
-      defaultContentProvider.clearCache()
+      if (!saveSuccess) {
+        console.warn('⚠️ 数据库保存失败，但继续更新本地状态')
+        // 数据库保存失败时，至少更新本地状态和localStorage
+        setDefaultContent(updatedContent)
+        localStorage.setItem('default_content_backup', JSON.stringify(updatedContent))
+        
+        setEditingDefaultItem(null)
+        setDefaultEditForm({})
+        
+        alert('⚠️ 数据库保存失败，但修改已保存到本地。请检查网络连接或联系技术支持。')
+        return
+      }
       
-      console.log('🔄 重新加载默认内容...')
-      await loadDefaultContent()
+      // 2. 数据库保存成功，更新本地状态
+      console.log('✅ 数据库保存成功，更新本地状态...')
+      setDefaultContent(updatedContent)
       
+      // 3. 备份到localStorage
+      localStorage.setItem('default_content_backup', JSON.stringify(updatedContent))
+      
+      // 4. 清除任何缓存（如果有的话）
+      try {
+        // 检查是否存在defaultContentProvider
+        if (typeof window !== 'undefined' && (window as any).defaultContentProvider?.clearCache) {
+          console.log('🔄 清除前端缓存...')
+          ;(window as any).defaultContentProvider.clearCache()
+        }
+      } catch (cacheError) {
+        console.warn('清除缓存失败，这不影响保存操作:', cacheError)
+      }
+      
+      // 5. 重置编辑状态
       setEditingDefaultItem(null)
       setDefaultEditForm({})
       
       console.log('✅ 默认内容修改保存成功')
-      alert('修改已保存！前端内容将在刷新后更新。')
+      alert('✅ 修改已成功保存！内容已实时更新。')
+      
     } catch (error: any) {
       console.error('❌ 保存默认内容失败:', error)
-      alert('保存失败，请重试。错误详情: ' + (error instanceof Error ? error.message : '未知错误'))
+      
+      // 详细的错误信息
+      let errorMessage = '保存失败，请重试。'
+      if (error.message) {
+        errorMessage += `\\n错误详情: ${error.message}`
+      }
+      if (error.code) {
+        errorMessage += `\\n错误代码: ${error.code}`
+      }
+      
+      alert(errorMessage)
     }
   }
 
@@ -945,6 +1066,27 @@ export default function AdminPage() {
     <div>
       <h2 className="text-xl font-bold mb-4 text-indigo-600">默认内容管理</h2>
       <p className="text-sm text-gray-500 mb-6">编辑网站默认内容，这些修改将直接影响首页显示</p>
+      
+      {!defaultContent && (
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+            <p className="text-gray-500">正在加载默认内容...</p>
+          </div>
+        </div>
+      )}
+      
+      {defaultContent && Object.keys(defaultContent).length === 0 && (
+        <div className="text-center py-12">
+          <p className="text-gray-500 mb-4">暂无默认内容数据</p>
+          <button
+            onClick={loadDefaultContent}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
+          >
+            重新加载
+          </button>
+        </div>
+      )}
       
       <div className="space-y-8">
         {/* 默认智能体 */}
@@ -1802,68 +1944,202 @@ export default function AdminPage() {
   )
 
   return (
-    <div className="p-8">
-      <div className="max-w-4xl mx-auto">
-        {/* 数据库连接状态栏 */}
-        <div className={`mb-4 p-3 rounded-lg border ${
-          dbConnectionStatus === 'connected' ? 'bg-green-50 border-green-200' :
-          dbConnectionStatus === 'connecting' ? 'bg-yellow-50 border-yellow-200' :
-          'bg-red-50 border-red-200'
-        }`}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className={`w-3 h-3 rounded-full ${
-                dbConnectionStatus === 'connected' ? 'bg-green-500' :
-                dbConnectionStatus === 'connecting' ? 'bg-yellow-500 animate-pulse' :
-                'bg-red-500'
-              }`}></div>
-              <span className={`font-medium ${
-                dbConnectionStatus === 'connected' ? 'text-green-700' :
-                dbConnectionStatus === 'connecting' ? 'text-yellow-700' :
-                'text-red-700'
-              }`}>
-                数据库状态: {dbStatusMessage}
-              </span>
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">管理后台</h1>
+          <p className="mt-2 text-gray-600">欢迎使用陈老师AI进化论管理系统</p>
+        </div>
+
+        {/* 连接状态卡片 */}
+        <div className="mb-8">
+          <div className="bg-white rounded-lg shadow-sm p-6 border">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">数据库连接状态</h2>
+              <button
+                onClick={checkConnectionStatus}
+                className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
+              >
+                刷新状态
+              </button>
             </div>
-            <button
-              onClick={checkDatabaseConnection}
-              disabled={dbConnectionStatus === 'connecting'}
-              className={`text-xs px-3 py-1 rounded hover:opacity-80 ${
-                dbConnectionStatus === 'connected' ? 'bg-green-100 text-green-700' :
-                dbConnectionStatus === 'connecting' ? 'bg-yellow-100 text-yellow-700' :
-                'bg-red-100 text-red-700'
-              }`}
-            >
-              {dbConnectionStatus === 'connecting' ? '检查中...' : '重新检查'}
-            </button>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="flex items-center space-x-3">
+                <div className={`w-3 h-3 rounded-full ${
+                  connectionStatus.isConnected ? 'bg-green-500' : 'bg-red-500'
+                }`}></div>
+                <span className="font-medium">
+                  {connectionStatus.isConnected ? '已连接' : '连接失败'}
+                </span>
+              </div>
+              
+              <div className="flex items-center space-x-3">
+                <span className="text-sm text-gray-600">连接模式:</span>
+                <span className={`px-2 py-1 text-xs rounded-full ${
+                  connectionStatus.mode === 'sdk' 
+                    ? 'bg-blue-100 text-blue-700' 
+                    : 'bg-orange-100 text-orange-700'
+                }`}>
+                  {connectionStatus.mode === 'sdk' ? 'SDK直连' : 'API模式'}
+                </span>
+              </div>
+              
+              <div className="flex items-center space-x-3">
+                <span className="text-sm text-gray-600">最后检查:</span>
+                <span className="text-sm">
+                  {connectionStatus.lastCheck 
+                    ? connectionStatus.lastCheck.toLocaleTimeString() 
+                    : '未检查'}
+                </span>
+              </div>
+            </div>
+
+            {!connectionStatus.isConnected && (
+              <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
+                <p className="text-sm text-red-700">
+                  ⚠️ 数据库连接异常，系统已自动尝试切换连接模式。
+                  如果问题持续，请检查网络连接或联系技术支持。
+                </p>
+              </div>
+            )}
+
+            {connectionStatus.mode === 'api' && (
+              <div className="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-md">
+                <p className="text-sm text-orange-700">
+                  📡 当前使用API模式连接，这是为了确保稳定性的备用方案。
+                  系统会自动监控并在条件允许时切换回SDK模式。
+                </p>
+              </div>
+            )}
           </div>
         </div>
-        
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-indigo-700">管理后台</h1>
-          <button onClick={logout} className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition">退出登录</button>
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 justify-center mb-10">
-          {modules.map(m => (
-            <button
-              key={m.key}
-              onClick={() => handleSwitchModule(m.key)}
-              className={`flex flex-col items-center px-4 py-4 rounded-2xl shadow transition-all duration-200 border-2 min-h-[120px] w-full ${active === m.key ? 'bg-gradient-to-r from-indigo-500 to-violet-500 text-white border-indigo-400 scale-105' : 'bg-white text-indigo-700 border-transparent hover:border-indigo-200'}`}
-            >
-              <span className="text-2xl mb-2">{m.icon}</span>
-              <span className="font-bold text-sm whitespace-nowrap">{m.name}</span>
-              <span className="text-xs mt-1 opacity-70 text-center leading-tight">{m.desc}</span>
-            </button>
-          ))}
-        </div>
-        <div className="bg-white rounded-xl shadow p-6 min-h-[400px]">
-          {active === 'carousel' && renderCarouselModule()}
-          {active === 'agents' && renderAgentModule()}
-          {active === 'prompts' && renderPromptModule()}
-          {active === 'resources' && renderResourceModule()}
-          {active === 'default-content' && renderDefaultContentModule()}
-          {active === 'requests' && renderRequestModule()}
-        </div>
+
+                 {/* 统计卡片 */}
+         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+           <div className="bg-white rounded-lg shadow-sm p-6 border">
+             <div className="flex items-center justify-between">
+               <div>
+                 <p className="text-sm font-medium text-gray-600">智能体</p>
+                 <p className="text-2xl font-bold text-gray-900">
+                   {isLoading ? '...' : stats.agents}
+                 </p>
+               </div>
+               <div className="p-3 bg-blue-100 rounded-full">
+                 <span className="text-blue-600 text-xl">🤖</span>
+               </div>
+             </div>
+           </div>
+
+           <div className="bg-white rounded-lg shadow-sm p-6 border">
+             <div className="flex items-center justify-between">
+               <div>
+                 <p className="text-sm font-medium text-gray-600">提示词</p>
+                 <p className="text-2xl font-bold text-gray-900">
+                   {isLoading ? '...' : stats.prompts}
+                 </p>
+               </div>
+               <div className="p-3 bg-green-100 rounded-full">
+                 <span className="text-green-600 text-xl">💡</span>
+               </div>
+             </div>
+           </div>
+
+           <div className="bg-white rounded-lg shadow-sm p-6 border">
+             <div className="flex items-center justify-between">
+               <div>
+                 <p className="text-sm font-medium text-gray-600">教学资源</p>
+                 <p className="text-2xl font-bold text-gray-900">
+                   {isLoading ? '...' : stats.resources}
+                 </p>
+               </div>
+               <div className="p-3 bg-purple-100 rounded-full">
+                 <span className="text-purple-600 text-xl">📚</span>
+               </div>
+             </div>
+           </div>
+
+           <div className="bg-white rounded-lg shadow-sm p-6 border">
+             <div className="flex items-center justify-between">
+               <div>
+                 <p className="text-sm font-medium text-gray-600">定制申请</p>
+                 <p className="text-2xl font-bold text-gray-900">
+                   {isLoading ? '...' : stats.requests}
+                 </p>
+               </div>
+               <div className="p-3 bg-orange-100 rounded-full">
+                 <span className="text-orange-600 text-xl">📋</span>
+               </div>
+             </div>
+           </div>
+         </div>
+
+         {/* 原有模块导航 */}
+         <div className="p-8">
+           <div className="max-w-4xl mx-auto">
+             {/* 数据库连接状态栏 */}
+             <div className={`mb-4 p-3 rounded-lg border ${
+               dbConnectionStatus === 'connected' ? 'bg-green-50 border-green-200' :
+               dbConnectionStatus === 'connecting' ? 'bg-yellow-50 border-yellow-200' :
+               'bg-red-50 border-red-200'
+             }`}>
+               <div className="flex items-center justify-between">
+                 <div className="flex items-center gap-3">
+                   <div className={`w-3 h-3 rounded-full ${
+                     dbConnectionStatus === 'connected' ? 'bg-green-500' :
+                     dbConnectionStatus === 'connecting' ? 'bg-yellow-500 animate-pulse' :
+                     'bg-red-500'
+                   }`}></div>
+                   <span className={`font-medium ${
+                     dbConnectionStatus === 'connected' ? 'text-green-700' :
+                     dbConnectionStatus === 'connecting' ? 'text-yellow-700' :
+                     'text-red-700'
+                   }`}>
+                     数据库状态: {dbStatusMessage}
+                   </span>
+                 </div>
+                 <button
+                   onClick={checkDatabaseConnection}
+                   disabled={dbConnectionStatus === 'connecting'}
+                   className={`text-xs px-3 py-1 rounded hover:opacity-80 ${
+                     dbConnectionStatus === 'connected' ? 'bg-green-100 text-green-700' :
+                     dbConnectionStatus === 'connecting' ? 'bg-yellow-100 text-yellow-700' :
+                     'bg-red-100 text-red-700'
+                   }`}
+                 >
+                   {dbConnectionStatus === 'connecting' ? '检查中...' : '重新检查'}
+                 </button>
+               </div>
+             </div>
+             
+             <div className="flex justify-between items-center mb-8">
+               <h1 className="text-3xl font-bold text-indigo-700">管理后台</h1>
+               <button onClick={logout} className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition">退出登录</button>
+             </div>
+             {/* 优化的模块按钮布局 - 响应式网格 */}
+             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-3 justify-center mb-10">
+               {modules.map(m => (
+                 <button
+                   key={m.key}
+                   onClick={() => handleSwitchModule(m.key)}
+                   className={`flex flex-col items-center px-3 py-4 rounded-2xl shadow transition-all duration-200 border-2 min-h-[100px] w-full ${active === m.key ? 'bg-gradient-to-r from-indigo-500 to-violet-500 text-white border-indigo-400 scale-105' : 'bg-white text-indigo-700 border-transparent hover:border-indigo-200 hover:shadow-md'}`}
+                 >
+                   <span className="text-xl mb-1">{m.icon}</span>
+                   <span className="font-bold text-xs whitespace-nowrap mb-1">{m.name}</span>
+                   <span className="text-[10px] opacity-70 text-center leading-tight hidden sm:block">{m.desc}</span>
+                 </button>
+               ))}
+             </div>
+             <div className="bg-white rounded-xl shadow p-6 min-h-[400px]">
+               {active === 'carousel' && renderCarouselModule()}
+               {active === 'agents' && renderAgentModule()}
+               {active === 'prompts' && renderPromptModule()}
+               {active === 'resources' && renderResourceModule()}
+               {active === 'default-content' && renderDefaultContentModule()}
+               {active === 'requests' && renderRequestModule()}
+             </div>
+           </div>
+         </div>
       </div>
     </div>
   )

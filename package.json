@@ -9,7 +9,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "wake-db": "node scripts/wake-database.js",
+    "postbuild": "node scripts/wake-database.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.38.4",
