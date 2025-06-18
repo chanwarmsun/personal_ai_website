@@ -893,9 +893,8 @@ export default function AdminPage() {
       
       if (!saveSuccess) {
         console.warn('⚠️ 数据库保存失败，但继续更新本地状态')
-        // 数据库保存失败时，至少更新本地状态和localStorage
+        // 数据库保存失败时，至少更新本地状态，跳过localStorage备份
         setDefaultContent(updatedContent)
-        localStorage.setItem('default_content_backup', JSON.stringify(updatedContent))
         
         setEditingDefaultItem(null)
         setDefaultEditForm({})
@@ -908,8 +907,75 @@ export default function AdminPage() {
       console.log('✅ 数据库保存成功，更新本地状态...')
       setDefaultContent(updatedContent)
       
-      // 3. 备份到localStorage
-      localStorage.setItem('default_content_backup', JSON.stringify(updatedContent))
+      // 3. 智能备份到localStorage（压缩和分片存储）
+      try {
+        console.log('🔄 创建本地备份...')
+        
+        // 创建轻量级备份（只保存必要信息）
+        const lightBackup = {
+          timestamp: new Date().toISOString(),
+          version: '2.0',
+          summary: {
+            agents: updatedContent.agents?.length || 0,
+            prompts: updatedContent.prompts?.length || 0,
+            teachingResources: updatedContent.teachingResources?.length || 0,
+            carousel: updatedContent.carousel?.length || 0
+          },
+          lastEdit: {
+            type,
+            index,
+            title: defaultEditForm.title || defaultEditForm.name || '未知项目'
+          }
+        }
+        
+        // 尝试存储轻量级备份
+        localStorage.setItem('default_content_light_backup', JSON.stringify(lightBackup))
+        
+        // 尝试存储完整备份（如果空间足够）
+        try {
+          const fullBackupString = JSON.stringify(updatedContent)
+          
+          // 检查大小（大概估算）
+          const sizeInBytes = new Blob([fullBackupString]).size
+          const sizeInKB = Math.round(sizeInBytes / 1024)
+          
+          console.log(`备份数据大小: ${sizeInKB}KB`)
+          
+          // 如果数据过大（超过2MB），只保存轻量级备份
+          if (sizeInBytes > 2 * 1024 * 1024) {
+            console.warn('⚠️ 数据量过大，跳过完整备份，只保存轻量级备份')
+            // 清除可能存在的旧的大备份
+            localStorage.removeItem('default_content_backup')
+          } else {
+            localStorage.setItem('default_content_backup', fullBackupString)
+            console.log('✅ 完整备份已保存')
+          }
+        } catch (storageError: any) {
+          console.warn('⚠️ 完整备份失败，但轻量级备份已保存:', storageError.message)
+          
+          // 如果是配额错误，清理一些旧数据
+          if (storageError.name === 'QuotaExceededError' || storageError.message.includes('quota')) {
+            console.log('🧹 清理localStorage中的旧数据...')
+            
+            // 清理可能的旧备份
+            try {
+              localStorage.removeItem('default_content_backup')
+              localStorage.removeItem('admin_backup_data')
+              localStorage.removeItem('carousel_backup')
+              localStorage.removeItem('agents_backup')
+              localStorage.removeItem('prompts_backup')
+              localStorage.removeItem('resources_backup')
+              
+              console.log('✅ 旧备份数据已清理')
+            } catch (cleanupError) {
+              console.warn('清理旧数据时出错:', cleanupError)
+            }
+          }
+        }
+        
+      } catch (backupError: any) {
+        console.warn('本地备份失败，这不影响数据库保存:', backupError.message)
+      }
       
       // 4. 清除任何缓存（如果有的话）
       try {
@@ -932,13 +998,55 @@ export default function AdminPage() {
     } catch (error: any) {
       console.error('❌ 保存默认内容失败:', error)
       
-      // 详细的错误信息
+      // 详细的错误信息，但过滤掉localStorage相关的错误提示
       let errorMessage = '保存失败，请重试。'
-      if (error.message) {
-        errorMessage += `\\n错误详情: ${error.message}`
+      
+      // 如果是localStorage配额错误，给出友好提示
+      if (error.name === 'QuotaExceededError' || 
+          (error.message && error.message.includes('quota')) ||
+          (error.message && error.message.includes('Storage'))) {
+        
+        // 数据可能已经保存到数据库了，检查一下
+        console.log('🔍 检查数据库保存状态...')
+        try {
+          const { type, index } = editingDefaultItem
+          const updatedContent = { ...defaultContent }
+          
+          if (type === 'agents') {
+            updatedContent.agents[index] = { ...defaultEditForm }
+          } else if (type === 'prompts') {
+            updatedContent.prompts[index] = { ...defaultEditForm }
+          } else if (type === 'teachingResources') {
+            updatedContent.teachingResources[index] = { ...defaultEditForm }
+          }
+          
+          // 尝试保存到数据库
+          const saveSuccess = await defaultContentOperations.save('website_default', updatedContent)
+          
+          if (saveSuccess) {
+            // 数据库保存成功
+            setDefaultContent(updatedContent)
+            setEditingDefaultItem(null)
+            setDefaultEditForm({})
+            
+            errorMessage = '✅ 修改已成功保存到数据库！\n\n⚠️ 由于浏览器存储空间不足，本地备份未能创建，但这不影响数据的保存和使用。\n\n💡 建议清理浏览器缓存以释放存储空间。'
+            alert(errorMessage)
+            return
+          }
+        } catch (dbCheckError) {
+          console.error('数据库保存检查失败:', dbCheckError)
+        }
+        
+        errorMessage = '⚠️ 本地存储空间不足，保存可能受到影响。\n\n建议清理浏览器缓存后重试。'
+      } else if (error.message) {
+        // 过滤掉技术性的localStorage错误信息
+        if (!error.message.includes('Storage') && !error.message.includes('quota')) {
+          errorMessage += `\n错误详情: ${error.message}`
+        }
       }
-      if (error.code) {
-        errorMessage += `\\n错误代码: ${error.code}`
+      
+      if (error.code && !error.code.includes('QUOTA')) {
+        errorMessage += `\n错误代码: ${error.code}`
       }
       
       alert(errorMessage)
