@@ -7,8 +7,7 @@ import FileUploadComponent from '../../components/FileUploadComponent'
 import { agentOperations, promptOperations, resourceOperations, requestOperations, testConnection } from '../../lib/database'
 import { carouselOperations, defaultContentOperations } from '../../lib/carousel-operations'
 import { defaultContentProvider } from '../../lib/default-content-provider'
-import { DatabaseConnectionManager } from '../../lib/supabase'
-import { smartConnection } from '@/lib/supabase'
+import { DatabaseConnectionManager, smartConnection } from '../../lib/supabase'
 
 const modules = [
   { key: 'carousel', name: '轮播管理', desc: '管理首页轮播图片，支持增删改查', icon: '🎠' },
