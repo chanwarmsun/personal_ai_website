@@ -49,8 +49,9 @@ next-env.d.ts
 Thumbs.db
 
 # Logs
-logs
 *.log
+logs/
+!app/admin/logs/
 
 # Temporary files
 tmp/
