@@ -152,30 +152,74 @@ export default function AdminPage() {
     }
   }
 
-  // 加载统计数据（只统计管理后台添加的自定义内容）
+  // 加载统计数据（统计默认内容+自定义内容的总数）
   const loadStats = async () => {
     try {
       setIsLoading(true)
       console.log('🔄 开始加载统计数据...')
       
-      // 只加载数据库中的自定义内容（不包含默认内容）
-      const [agentsData, promptsData, resourcesData, requestsData] = await Promise.all([
+      // 1. 并行加载自定义内容和默认内容
+      const [agentsData, promptsData, resourcesData, requestsData, defaultContentData] = await Promise.all([
         agentOperations.getAll(),
         promptOperations.getAll(),
         resourceOperations.getAll(),
-        requestOperations.getAll()
+        requestOperations.getAll(),
+        // 加载默认内容数据
+        (async () => {
+          try {
+            // 优先从数据库获取
+            let dbContent = await defaultContentOperations.get('website_default')
+            if (dbContent) {
+              return {
+                agents: dbContent.agents || [],
+                prompts: dbContent.prompts || [],
+                teachingResources: dbContent.teachingResources || dbContent.resources || []
+              }
+            }
+            
+            // 如果数据库没有，从文件获取
+            const response = await fetch('/data/content.json')
+            if (response.ok) {
+              const fileData = await response.json()
+              return {
+                agents: fileData.agents || [],
+                prompts: fileData.prompts || [],
+                teachingResources: fileData.teachingResources || []
+              }
+            }
+            
+            // 都失败了，返回空数据
+            return { agents: [], prompts: [], teachingResources: [] }
+          } catch (error) {
+            console.warn('⚠️ 获取默认内容数量失败:', error)
+            return { agents: [], prompts: [], teachingResources: [] }
+          }
+        })()
       ])
       
-      // 统计数据只包含管理后台添加的自定义内容
-      const customStats = {
+      console.log('📊 自定义内容数量:', {
         agents: agentsData.length,
         prompts: promptsData.length,
         resources: resourcesData.length,
         requests: requestsData.length
+      })
+      
+      console.log('📋 默认内容数量:', {
+        agents: defaultContentData.agents.length,
+        prompts: defaultContentData.prompts.length,
+        resources: defaultContentData.teachingResources.length
+      })
+      
+      // 2. 计算总数量（默认内容 + 自定义内容）
+      const totalStats = {
+        agents: defaultContentData.agents.length + agentsData.length,
+        prompts: defaultContentData.prompts.length + promptsData.length,
+        resources: defaultContentData.teachingResources.length + resourcesData.length,
+        requests: requestsData.length // 定制申请只统计数据库中的
       }
       
-      console.log('📊 管理后台自定义内容统计:', customStats)
-      setStats(customStats)
+      console.log('📈 总统计数据 (默认+自定义):', totalStats)
+      setStats(totalStats)
       
     } catch (error) {
       console.error('❌ 加载统计数据失败:', error)
@@ -595,6 +639,13 @@ export default function AdminPage() {
       }
       
       console.log(`✅ 模块 ${moduleKey} 数据加载完成，耗时: ${Date.now() - startTime}ms`)
+      
+      // 在加载了内容数据后，重新计算统计数据
+      if (['agents', 'prompts', 'resources', 'requests', 'default-content'].includes(moduleKey)) {
+        console.log('🔄 重新加载统计数据以保持同步...')
+        await loadStats()
+      }
+      
     } catch (error) {
       console.error(`❌ 模块 ${moduleKey} 数据加载失败:`, error)
     }
@@ -676,18 +727,21 @@ export default function AdminPage() {
           })
           if (updated) {
             await loadCarousel()
+            await loadStats() // 刷新统计数据
           }
         } else if (active === 'agents') {
           const updated = await agentOperations.update(form.id, form)
           if (updated) {
             // 直接重新加载数据，不需要手动更新状态
             await loadAgents()
+            await loadStats() // 刷新统计数据
           }
         } else if (active === 'prompts') {
           const updated = await promptOperations.update(form.id, form)
           if (updated) {
             // 直接重新加载数据，不需要手动更新状态
             await loadPrompts()
+            await loadStats() // 刷新统计数据
           }
         } else {
           const { downloadUrl, ...updateData } = form
@@ -698,6 +752,7 @@ export default function AdminPage() {
           if (updated) {
             // 直接重新加载数据，不需要手动更新状态
             await loadResources()
+            await loadStats() // 刷新统计数据
           }
         }
         setEditingIndex(null)
@@ -717,6 +772,7 @@ export default function AdminPage() {
             if (created) {
               console.log('🔄 开始重新加载轮播数据...')
               await loadCarousel()
+              await loadStats() // 刷新统计数据
               console.log('🔄 重新加载轮播完成')
               
               // 重置表单状态，确保下次输入正常
@@ -773,6 +829,7 @@ export default function AdminPage() {
             
             // 重新加载数据
             await loadAgents()
+            await loadStats() // 刷新统计数据
             
             // 重置表单状态
             setForm(getCurrentDefault())
@@ -820,6 +877,7 @@ export default function AdminPage() {
             
             // 重新加载数据
             await loadPrompts()
+            await loadStats() // 刷新统计数据
             
             // 重置表单状态
             setForm(getCurrentDefault())
@@ -865,6 +923,7 @@ export default function AdminPage() {
             
             // 重新加载数据
             await loadResources()
+            await loadStats() // 刷新统计数据
             
             // 重置表单状态
             setForm(getCurrentDefault())
@@ -920,16 +979,20 @@ export default function AdminPage() {
           const success = await carouselOperations.delete(item.id)
           if (success) {
             await loadCarousel()
+            await loadStats() // 刷新统计数据
           }
         } else if (active === 'agents') {
           await agentOperations.delete(item.id)
           await loadAgents()
+          await loadStats() // 刷新统计数据
         } else if (active === 'prompts') {
           await promptOperations.delete(item.id)
           await loadPrompts()
+          await loadStats() // 刷新统计数据
         } else {
           await resourceOperations.delete(item.id)
           await loadResources()
+          await loadStats() // 刷新统计数据
         }
         
         setEditingIndex(null)
@@ -1086,6 +1149,10 @@ export default function AdminPage() {
       setDefaultEditForm({})
       
       console.log('✅ 默认内容修改保存成功')
+      
+      // 刷新统计数据
+      await loadStats()
+      
       alert('✅ 修改已成功保存！内容已实时更新。')
       
     } catch (error: any) {
