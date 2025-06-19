@@ -132,6 +132,45 @@ export default function AdminPage() {
     lastCheck: null
   })
 
+  const [isUploading, setIsUploading] = useState(false)
+  const [saveMessage, setSaveMessage] = useState('')
+  
+  // 图片压缩工具函数
+  const compressImage = (file: File, maxWidth: number = 800, quality: number = 0.8): Promise<string> => {
+    return new Promise((resolve) => {
+      const canvas = document.createElement('canvas')
+      const ctx = canvas.getContext('2d')
+      const img = new Image()
+      
+      img.onload = () => {
+        // 计算压缩后的尺寸
+        let { width, height } = img
+        if (width > maxWidth) {
+          height = (height * maxWidth) / width
+          width = maxWidth
+        }
+        
+        canvas.width = width
+        canvas.height = height
+        
+        // 绘制压缩后的图片
+        ctx?.drawImage(img, 0, 0, width, height)
+        
+        // 转换为base64，使用指定质量
+        const compressedDataUrl = canvas.toDataURL('image/jpeg', quality)
+        resolve(compressedDataUrl)
+      }
+      
+      img.src = URL.createObjectURL(file)
+    })
+  }
+
+  // 显示保存提示
+  const showSaveMessage = (message: string, type: 'success' | 'error' = 'success') => {
+    setSaveMessage(message)
+    setTimeout(() => setSaveMessage(''), 3000) // 3秒后自动消失
+  }
+
   // 检查数据库连接状态
   const checkConnectionStatus = async () => {
     try {
@@ -665,14 +704,44 @@ export default function AdminPage() {
     setForm((f: any) => ({ ...f, [name]: value }))
   }
 
-  const handleImage = (e: any) => {
+  const handleImage = async (e: any) => {
     const file = e.target.files[0]
-    if (file) {
-      const reader = new FileReader()
-      reader.onload = (ev: any) => {
-        setForm((f: any) => ({ ...f, image: ev.target.result }))
+    if (!file) return
+
+    // 检查文件类型
+    if (!file.type.startsWith('image/')) {
+      alert('请选择图片文件（JPG、PNG、WebP等）')
+      return
+    }
+
+    // 检查文件大小（限制为5MB）
+    if (file.size > 5 * 1024 * 1024) {
+      alert('图片文件过大，请选择小于5MB的图片')
+      return
+    }
+
+    setIsUploading(true)
+    
+    try {
+      // 压缩图片
+      const compressedImage = await compressImage(file, 800, 0.8)
+      
+      // 检查压缩后的大小
+      const compressedSize = compressedImage.length * 3/4 // base64的大概字节数
+      if (compressedSize > 2 * 1024 * 1024) { // 如果压缩后还是超过2MB
+        // 进一步压缩
+        const furtherCompressed = await compressImage(file, 600, 0.6)
+        setForm((f: any) => ({ ...f, image: furtherCompressed }))
+      } else {
+        setForm((f: any) => ({ ...f, image: compressedImage }))
       }
-      reader.readAsDataURL(file)
+      
+      console.log(`📸 图片压缩完成: 原始大小 ${(file.size/1024/1024).toFixed(2)}MB -> 压缩后约 ${(compressedSize/1024/1024).toFixed(2)}MB`)
+    } catch (error) {
+      console.error('图片压缩失败:', error)
+      alert('图片处理失败，请重试')
+    } finally {
+      setIsUploading(false)
     }
   }
 
@@ -728,6 +797,7 @@ export default function AdminPage() {
           if (updated) {
             await loadCarousel()
             await loadStats() // 刷新统计数据
+            showSaveMessage('轮播图更新成功！')
           }
         } else if (active === 'agents') {
           const updated = await agentOperations.update(form.id, form)
@@ -735,6 +805,7 @@ export default function AdminPage() {
             // 直接重新加载数据，不需要手动更新状态
             await loadAgents()
             await loadStats() // 刷新统计数据
+            showSaveMessage('智能体更新成功！')
           }
         } else if (active === 'prompts') {
           const updated = await promptOperations.update(form.id, form)
@@ -742,6 +813,7 @@ export default function AdminPage() {
             // 直接重新加载数据，不需要手动更新状态
             await loadPrompts()
             await loadStats() // 刷新统计数据
+            showSaveMessage('提示词更新成功！')
           }
         } else {
           const { downloadUrl, ...updateData } = form
@@ -753,6 +825,7 @@ export default function AdminPage() {
             // 直接重新加载数据，不需要手动更新状态
             await loadResources()
             await loadStats() // 刷新统计数据
+            showSaveMessage('教学资源更新成功！')
           }
         }
         setEditingIndex(null)
@@ -781,7 +854,7 @@ export default function AdminPage() {
               if (fileInputRef.current) fileInputRef.current.value = ''
               
               console.log('✅ 轮播图创建成功，表单已重置')
-              alert('轮播图创建成功！')
+              showSaveMessage('轮播图创建成功！')
               return // 提早返回，避免重复重置表单
             } else {
               console.error('❌ 创建返回null，但没有抛出异常')
@@ -836,7 +909,7 @@ export default function AdminPage() {
             setTagInput('')
             if (fileInputRef.current) fileInputRef.current.value = ''
             
-            alert('智能体创建成功！')
+            showSaveMessage('智能体创建成功！')
             return
           } catch (createError: any) {
             console.error('💥 创建智能体失败:', createError)
@@ -884,7 +957,7 @@ export default function AdminPage() {
             setTagInput('')
             if (fileInputRef.current) fileInputRef.current.value = ''
             
-            alert('提示词创建成功！')
+            showSaveMessage('提示词创建成功！')
             return
           } catch (createError: any) {
             console.error('💥 创建提示词失败:', createError)
@@ -930,7 +1003,7 @@ export default function AdminPage() {
             setTagInput('')
             if (fileInputRef.current) fileInputRef.current.value = ''
             
-            alert('教学资源创建成功！')
+            showSaveMessage('教学资源创建成功！')
             return
           } catch (createError: any) {
             console.error('💥 创建教学资源失败:', createError)
@@ -1153,7 +1226,7 @@ export default function AdminPage() {
       // 刷新统计数据
       await loadStats()
       
-      alert('✅ 修改已成功保存！内容已实时更新。')
+                  showSaveMessage('✅ 修改已成功保存！内容已实时更新。')
       
     } catch (error: any) {
       console.error('❌ 保存默认内容失败:', error)
@@ -1255,6 +1328,14 @@ export default function AdminPage() {
       <h2 className="text-xl font-bold mb-4 text-indigo-600">轮播管理</h2>
       <p className="text-sm text-gray-500 mb-6">管理首页轮播图片。系统包含默认轮播内容，您可以添加自定义轮播图片。标有"默认"的为系统预设内容，不可编辑。</p>
       
+      {/* 保存状态提示 */}
+      {saveMessage && (
+        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
+          <span className="text-green-600">✅</span>
+          <span className="text-green-800 text-sm">{saveMessage}</span>
+        </div>
+      )}
+      
       {/* 图片尺寸提示 */}
       <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
         <div className="flex items-start gap-2">
@@ -1306,8 +1387,21 @@ export default function AdminPage() {
         <div className="flex gap-4 items-start">
           <div>
             <label className="block text-sm font-medium mb-1">图片</label>
-            <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImage} className="block w-24 text-xs" />
-            {form.image && <img src={form.image} alt="预览" className="w-20 h-12 rounded-lg mt-2 object-cover border" />}
+            <input 
+              type="file" 
+              accept="image/*" 
+              ref={fileInputRef} 
+              onChange={handleImage} 
+              className="block w-24 text-xs"
+              disabled={isUploading}
+            />
+            {isUploading && (
+              <div className="mt-2 text-xs text-blue-600 flex items-center gap-1">
+                <div className="animate-spin rounded-full h-3 w-3 border-b border-blue-600"></div>
+                压缩中...
+              </div>
+            )}
+            {form.image && !isUploading && <img src={form.image} alt="预览" className="w-20 h-12 rounded-lg mt-2 object-cover border" />}
           </div>
           <div className="flex-1 space-y-2">
             <input 
@@ -1336,8 +1430,12 @@ export default function AdminPage() {
         />
         <div className="flex gap-3 justify-end">
           {editingIndex !== null && <button type="button" onClick={handleCancel} className="px-4 py-2 rounded bg-gray-100 text-gray-500 hover:bg-gray-200">取消</button>}
-          <button type="submit" className="px-4 py-2 rounded bg-gradient-to-r from-indigo-500 to-violet-500 text-white font-semibold shadow hover:shadow-lg transition-all duration-200">
-            {editingIndex !== null ? '保存修改' : '新增轮播'}
+          <button 
+            type="submit" 
+            disabled={isUploading}
+            className="px-4 py-2 rounded bg-gradient-to-r from-indigo-500 to-violet-500 text-white font-semibold shadow hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isUploading ? '处理中...' : (editingIndex !== null ? '保存修改' : '新增轮播')}
           </button>
         </div>
       </form>
@@ -1817,6 +1915,14 @@ export default function AdminPage() {
     <div>
       <h2 className="text-xl font-bold mb-4 text-indigo-600">智能体管理</h2>
       <p className="text-sm text-gray-500 mb-6">新增的智能体将自动显示在首页（需要刷新页面查看效果）</p>
+      
+      {/* 保存状态提示 */}
+      {saveMessage && (
+        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
+          <span className="text-green-600">✅</span>
+          <span className="text-green-800 text-sm">{saveMessage}</span>
+        </div>
+      )}
       {/* 列表 */}
       <div className="mb-8">
         {agents.length === 0 && <div className="text-gray-400 text-center py-8">暂无自定义智能体</div>}
@@ -1846,8 +1952,21 @@ export default function AdminPage() {
         <div className="flex gap-4 items-start">
           <div>
             <label className="block text-sm font-medium mb-1">图片</label>
-            <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImage} className="block w-24 text-xs" />
-            {form.image && <img src={form.image} alt="预览" className="w-16 h-16 rounded-lg mt-2 object-cover border" />}
+            <input 
+              type="file" 
+              accept="image/*" 
+              ref={fileInputRef} 
+              onChange={handleImage} 
+              className="block w-24 text-xs"
+              disabled={isUploading}
+            />
+            {isUploading && (
+              <div className="mt-2 text-xs text-blue-600 flex items-center gap-1">
+                <div className="animate-spin rounded-full h-3 w-3 border-b border-blue-600"></div>
+                压缩中...
+              </div>
+            )}
+            {form.image && !isUploading && <img src={form.image} alt="预览" className="w-16 h-16 rounded-lg mt-2 object-cover border" />}
           </div>
           <div className="flex-1 space-y-2">
             <input name="name" value={form.name} onChange={handleChange} placeholder="智能体名称" className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-indigo-200" />
@@ -1893,6 +2012,14 @@ export default function AdminPage() {
     <div>
       <h2 className="text-xl font-bold mb-4 text-indigo-600">提示词管理</h2>
       <p className="text-sm text-gray-500 mb-6">新增的提示词将自动显示在首页（需要刷新页面查看效果）</p>
+      
+      {/* 保存状态提示 */}
+      {saveMessage && (
+        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
+          <span className="text-green-600">✅</span>
+          <span className="text-green-800 text-sm">{saveMessage}</span>
+        </div>
+      )}
       {/* 列表 */}
       <div className="mb-8">
         {prompts.length === 0 && <div className="text-gray-400 text-center py-8">暂无自定义提示词</div>}
@@ -1960,6 +2087,14 @@ export default function AdminPage() {
     <div>
       <h2 className="text-xl font-bold mb-4 text-indigo-600">AI教学资源管理</h2>
       <p className="text-sm text-gray-500 mb-6">新增的教学资源将自动显示在首页（需要刷新页面查看效果）</p>
+      
+      {/* 保存状态提示 */}
+      {saveMessage && (
+        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
+          <span className="text-green-600">✅</span>
+          <span className="text-green-800 text-sm">{saveMessage}</span>
+        </div>
+      )}
       {/* 列表 */}
       <div className="mb-8">
         {resources.length === 0 && <div className="text-gray-400 text-center py-8">暂无自定义教学资源</div>}
