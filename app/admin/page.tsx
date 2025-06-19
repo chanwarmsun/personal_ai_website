@@ -135,6 +135,8 @@ export default function AdminPage() {
   const [isUploading, setIsUploading] = useState(false)
   const [saveMessage, setSaveMessage] = useState('')
   
+  const [isLoadingEdit, setIsLoadingEdit] = useState(false)
+  
   // 图片压缩工具函数
   const compressImage = (file: File, maxWidth: number = 800, quality: number = 0.8): Promise<string> => {
     return new Promise((resolve) => {
@@ -789,9 +791,12 @@ export default function AdminPage() {
       if (editingIndex !== null) {
         // 更新现有项目
         if (active === 'carousel') {
+          // 处理图片数据：如果有imageForPreview，使用它；否则使用image字段
+          const imageData = form.imageForPreview || form.image
+          
           const updated = await carouselOperations.update(form.id, {
             title: form.title,
-            image: form.image,
+            image: imageData,
             description: form.description
           })
           if (updated) {
@@ -835,9 +840,12 @@ export default function AdminPage() {
           console.log('📝 创建轮播图:', form)
           
           try {
+            // 处理图片数据：如果有imageForPreview，使用它；否则使用image字段
+            const imageData = form.imageForPreview || form.image
+            
             const created = await carouselOperations.create({
               title: form.title,
-              image: form.image,
+              image: imageData,
               description: form.description,
               order_index: carousel.length
             })
@@ -1029,9 +1037,47 @@ export default function AdminPage() {
     }
   }
 
-  const handleEdit = (idx: number) => {
-    setEditingIndex(idx)
-    setForm(getCurrentData()[idx])
+  // 优化的编辑处理函数
+  const handleEdit = async (idx: number) => {
+    setIsLoadingEdit(true)
+    
+    try {
+      const currentData = getCurrentData()
+      const itemToEdit = currentData[idx]
+      
+      // 先设置编辑索引，立即响应用户点击
+      setEditingIndex(idx)
+      
+      // 异步处理表单数据，避免大图片数据阻塞UI
+      await new Promise(resolve => setTimeout(resolve, 10)) // 让UI先更新
+      
+      // 处理图片数据，如果是大base64数据，先隐藏图片URL输入框的内容
+      const processedItem = { ...itemToEdit }
+      
+      // 如果图片是base64且很大，暂时不在URL输入框中显示
+      if (processedItem.image && processedItem.image.startsWith('data:image/') && processedItem.image.length > 1000) {
+        console.log('📸 检测到大图片数据，使用优化加载模式')
+        // 保留图片数据用于预览，但在URL输入框中显示友好提示
+        processedItem.imageForPreview = processedItem.image
+        processedItem.image = '[大图片已加载 - 点击预览查看]'
+      }
+      
+      setForm(processedItem)
+      
+      // 滚动到表单区域
+      setTimeout(() => {
+        const formElement = document.querySelector('form')
+        if (formElement) {
+          formElement.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }
+      }, 100)
+      
+    } catch (error) {
+      console.error('编辑数据加载失败:', error)
+      alert('编辑数据加载失败，请重试')
+    } finally {
+      setIsLoadingEdit(false)
+    }
   }
 
   const handleDelete = async (idx: number) => {
@@ -1371,7 +1417,13 @@ export default function AdminPage() {
             {/* 默认内容不能编辑和删除 */}
             {!item.isDefault && (
               <>
-                <button onClick={() => handleEdit(i)} className="px-3 py-1 text-xs rounded bg-indigo-50 text-indigo-600 hover:bg-indigo-100 mr-2">编辑</button>
+                <button 
+                  onClick={() => handleEdit(i)} 
+                  disabled={isLoadingEdit}
+                  className="px-3 py-1 text-xs rounded bg-indigo-50 text-indigo-600 hover:bg-indigo-100 mr-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isLoadingEdit ? '加载中...' : '编辑'}
+                </button>
                 <button onClick={() => handleDelete(i)} className="px-3 py-1 text-xs rounded bg-red-50 text-red-600 hover:bg-red-100">删除</button>
               </>
             )}
@@ -1401,7 +1453,30 @@ export default function AdminPage() {
                 压缩中...
               </div>
             )}
-            {form.image && !isUploading && <img src={form.image} alt="预览" className="w-20 h-12 rounded-lg mt-2 object-cover border" />}
+            {((form.image && !isUploading) || form.imageForPreview) && (
+              <img 
+                src={form.imageForPreview || form.image} 
+                alt="预览" 
+                className="w-20 h-12 rounded-lg mt-2 object-cover border cursor-pointer hover:opacity-80" 
+                onClick={() => {
+                  // 点击图片可以查看大图
+                  if (form.imageForPreview || form.image) {
+                    const imgWindow = window.open('', '_blank')
+                    if (imgWindow) {
+                      imgWindow.document.write(`
+                        <html>
+                          <head><title>图片预览</title></head>
+                          <body style="margin:0;display:flex;justify-content:center;align-items:center;min-height:100vh;background:#f0f0f0;">
+                            <img src="${form.imageForPreview || form.image}" style="max-width:100%;max-height:100%;object-fit:contain;" />
+                          </body>
+                        </html>
+                      `)
+                    }
+                  }
+                }}
+                title="点击查看大图"
+              />
+            )}
           </div>
           <div className="flex-1 space-y-2">
             <input 
@@ -1411,13 +1486,21 @@ export default function AdminPage() {
               placeholder="轮播标题" 
               className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-indigo-200" 
             />
-            <input 
-              name="image" 
-              value={form.image} 
-              onChange={handleChange} 
-              placeholder="图片URL" 
-              className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-indigo-200" 
-            />
+            <div className="relative">
+              <input 
+                name="image" 
+                value={form.image} 
+                onChange={handleChange} 
+                placeholder="图片URL" 
+                className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-indigo-200" 
+                readOnly={form.image && form.image.includes('[大图片已加载')}
+              />
+              {form.image && form.image.includes('[大图片已加载') && (
+                <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
+                  <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">✓ 已加载</span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
         <textarea 
