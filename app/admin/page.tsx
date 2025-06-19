@@ -152,13 +152,13 @@ export default function AdminPage() {
     }
   }
 
-  // 加载统计数据
+  // 加载统计数据（只统计管理后台添加的自定义内容）
   const loadStats = async () => {
     try {
       setIsLoading(true)
       console.log('🔄 开始加载统计数据...')
       
-      // 1. 加载数据库中的自定义内容
+      // 只加载数据库中的自定义内容（不包含默认内容）
       const [agentsData, promptsData, resourcesData, requestsData] = await Promise.all([
         agentOperations.getAll(),
         promptOperations.getAll(),
@@ -166,50 +166,16 @@ export default function AdminPage() {
         requestOperations.getAll()
       ])
       
-      console.log('📊 自定义内容数量:', {
+      // 统计数据只包含管理后台添加的自定义内容
+      const customStats = {
         agents: agentsData.length,
         prompts: promptsData.length,
         resources: resourcesData.length,
         requests: requestsData.length
-      })
-      
-      // 2. 加载默认内容数量
-      let defaultContentCounts = { agents: 0, prompts: 0, teachingResources: 0 }
-      try {
-        // 尝试从已加载的默认内容获取
-        if (defaultContent && Object.keys(defaultContent).length > 0) {
-          defaultContentCounts = {
-            agents: defaultContent.agents?.length || 0,
-            prompts: defaultContent.prompts?.length || 0,
-            teachingResources: defaultContent.teachingResources?.length || 0
-          }
-        } else {
-          // 如果默认内容未加载，从文件获取
-          const response = await fetch('/data/content.json')
-          if (response.ok) {
-            const fileData = await response.json()
-            defaultContentCounts = {
-              agents: fileData.agents?.length || 0,
-              prompts: fileData.prompts?.length || 0,
-              teachingResources: fileData.teachingResources?.length || 0
-            }
-          }
-        }
-        console.log('📋 默认内容数量:', defaultContentCounts)
-      } catch (error) {
-        console.warn('⚠️ 获取默认内容数量失败:', error)
       }
       
-      // 3. 计算总数量（默认内容 + 自定义内容）
-      const totalStats = {
-        agents: (defaultContentCounts.agents || 0) + agentsData.length,
-        prompts: (defaultContentCounts.prompts || 0) + promptsData.length,
-        resources: (defaultContentCounts.teachingResources || 0) + resourcesData.length,
-        requests: requestsData.length // 定制申请只统计数据库中的
-      }
-      
-      console.log('📈 总统计数据:', totalStats)
-      setStats(totalStats)
+      console.log('📊 管理后台自定义内容统计:', customStats)
+      setStats(customStats)
       
     } catch (error) {
       console.error('❌ 加载统计数据失败:', error)
@@ -226,11 +192,28 @@ export default function AdminPage() {
   }
 
   useEffect(() => {
-    loadStats()
-    checkConnectionStatus()
+    // 优化加载顺序：减少并发查询，串行加载统计数据
+    const initializeAdmin = async () => {
+      console.log('🚀 开始初始化管理后台...')
+      const startTime = Date.now()
+      
+      try {
+        // 1. 先检查连接状态
+        await checkConnectionStatus()
+        
+        // 2. 只加载必要的统计数据（减少数据库查询）
+        await loadStats()
+        
+        console.log(`✅ 管理后台初始化完成，耗时: ${Date.now() - startTime}ms`)
+      } catch (error) {
+        console.error('❌ 管理后台初始化失败:', error)
+      }
+    }
     
-    // 每30秒检查一次连接状态
-    const statusInterval = setInterval(checkConnectionStatus, 30000)
+    initializeAdmin()
+    
+    // 减少连接状态检查频率：从30秒改为60秒
+    const statusInterval = setInterval(checkConnectionStatus, 60000)
     
     return () => {
       clearInterval(statusInterval)
@@ -245,22 +228,32 @@ export default function AdminPage() {
       return
     }
     
-    // 检查数据库连接
-    checkDatabaseConnection()
+    // 优化初始化流程：延迟加载非关键数据
+    const initializeData = async () => {
+      console.log('📊 开始初始化数据加载...')
+      
+      try {
+        // 1. 先检查数据库连接
+        await checkDatabaseConnection()
+        
+        // 2. 延迟加载默认内容（仅在需要时加载）
+        // loadDefaultContent() - 注释掉，减少初始加载时间
+        
+        // 3. 默认先显示轮播管理，延迟加载其他数据
+        if (active === 'carousel') {
+          await loadCarousel()
+        }
+        // 其他数据在用户切换到对应模块时再加载
+        
+      } catch (error) {
+        console.error('❌ 数据初始化失败:', error)
+      }
+    }
     
-    // 先加载默认内容，再加载其他数据
-    loadDefaultContent().then(() => {
-      // 默认内容加载完成后，再加载其他数据以确保统计正确
-      loadCarousel()
-      loadAgents()
-      loadPrompts()
-      loadResources()
-      loadRequests()
-      loadStats() // 重新加载统计数据
-    })
+    initializeData()
     
-    // 定期检查数据库连接状态
-    const connectionInterval = setInterval(checkDatabaseConnection, 30000)
+    // 减少连接检查频率：从30秒改为2分钟
+    const connectionInterval = setInterval(checkDatabaseConnection, 120000)
     
     return () => clearInterval(connectionInterval)
   }, [])
@@ -366,56 +359,36 @@ export default function AdminPage() {
     try {
       console.log('🔄 开始加载轮播数据...')
       
-      // 1. 从数据库加载自定义轮播
+      // 只从数据库加载管理后台添加的轮播（不包含默认内容）
       const carouselData = await carouselOperations.getAll()
       console.log('📊 从数据库获取的轮播数据:', carouselData)
       
-      // 2. 从默认内容加载默认轮播
-      let defaultCarousels = []
-      try {
-        // 优先从已加载的默认内容获取
-        if (defaultContent?.carousel) {
-          defaultCarousels = defaultContent.carousel
-        } else {
-          // 如果默认内容未加载，从文件获取
-          const response = await fetch('/data/content.json')
-          if (response.ok) {
-            const fileData = await response.json()
-            defaultCarousels = fileData.carousel || []
-          }
-        }
-        console.log('📋 默认轮播数据:', defaultCarousels)
-      } catch (error) {
-        console.warn('⚠️ 加载默认轮播失败，仅显示自定义轮播:', error)
-      }
+      // 格式化数据，标记为自定义内容
+      const formattedCarousels = carouselData.map(item => ({
+        id: item.id,
+        title: item.title,
+        image: item.image,
+        description: item.description,
+        isDefault: false // 全部为自定义内容
+      }))
       
-      // 3. 合并数据：默认轮播 + 自定义轮播
-      const allCarousels = [
-        ...defaultCarousels.map((item: any) => ({
-          id: item.id,
-          title: item.title,
-          image: item.image,
-          description: item.description,
-          isDefault: true // 标记为默认内容
-        })),
-        ...carouselData.map(item => ({
-          id: item.id,
-          title: item.title,
-          image: item.image,
-          description: item.description,
-          isDefault: false // 标记为自定义内容
-        }))
-      ]
-      
-      console.log('🎠 合并后的轮播数据:', allCarousels)
-      setCarousel(allCarousels)
+      console.log('🎠 格式化后的轮播数据:', formattedCarousels)
+      setCarousel(formattedCarousels)
       
     } catch (error) {
       console.error('❌ 加载轮播数据失败:', error)
-      // 回退到localStorage
-      const saved = localStorage.getItem('custom_carousel')
-      if (saved) {
-        setCarousel(JSON.parse(saved))
+      // 回退到localStorage（如果有的话）
+      try {
+        const saved = localStorage.getItem('custom_carousel')
+        if (saved) {
+          const localData = JSON.parse(saved)
+          setCarousel(localData.map((item: any) => ({ ...item, isDefault: false })))
+        } else {
+          setCarousel([])
+        }
+      } catch (localError) {
+        console.error('从localStorage加载轮播也失败:', localError)
+        setCarousel([])
       }
     }
   }
@@ -579,7 +552,7 @@ export default function AdminPage() {
     return defaultCarouselItem  // 默认返回轮播项
   }
 
-  const handleSwitchModule = (moduleKey: string) => {
+  const handleSwitchModule = async (moduleKey: string) => {
     setActive(moduleKey)
     setEditingIndex(null)
     
@@ -593,6 +566,37 @@ export default function AdminPage() {
     if (moduleKey === 'logs') {
       window.open('/admin/logs', '_blank')
       return
+    }
+    
+    // 懒加载：只在切换到新模块时才加载对应数据
+    console.log(`🔄 切换到模块: ${moduleKey}，开始加载数据...`)
+    const startTime = Date.now()
+    
+    try {
+      switch (moduleKey) {
+        case 'carousel':
+          await loadCarousel()
+          break
+        case 'agents':
+          await loadAgents()
+          break
+        case 'prompts':
+          await loadPrompts()
+          break
+        case 'resources':
+          await loadResources()
+          break
+        case 'requests':
+          await loadRequests()
+          break
+        case 'default-content':
+          await loadDefaultContent()
+          break
+      }
+      
+      console.log(`✅ 模块 ${moduleKey} 数据加载完成，耗时: ${Date.now() - startTime}ms`)
+    } catch (error) {
+      console.error(`❌ 模块 ${moduleKey} 数据加载失败:`, error)
     }
     
     let defaultForm: any = getCurrentDefault()
