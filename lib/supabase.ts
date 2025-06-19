@@ -31,7 +31,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 class DatabaseKeepAlive {
   private static instance: DatabaseKeepAlive
   private keepAliveInterval: NodeJS.Timeout | null = null
-  private readonly KEEP_ALIVE_INTERVAL = 5 * 60 * 1000 // 5分钟
+  private readonly KEEP_ALIVE_INTERVAL = 15 * 60 * 1000 // 15分钟（减少频率）
 
   static getInstance(): DatabaseKeepAlive {
     if (!DatabaseKeepAlive.instance) {
@@ -87,7 +87,7 @@ export class DatabaseConnectionManager {
   private static instance: DatabaseConnectionManager
   private connectionStatus: 'connected' | 'disconnected' | 'connecting' | 'error' = 'disconnected'
   private lastConnectionCheck = 0
-  private readonly CONNECTION_CHECK_INTERVAL = 30000 // 30秒
+  private readonly CONNECTION_CHECK_INTERVAL = 2 * 60 * 1000 // 2分钟（减少检查频率）
   private retryCount = 0
   private readonly MAX_RETRIES = 5
 

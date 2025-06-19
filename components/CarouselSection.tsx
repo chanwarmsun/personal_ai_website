@@ -4,7 +4,7 @@ import { motion } from 'framer-motion'
 import { ChevronLeft, ChevronRight, Play, Pause } from 'lucide-react'
 import Image from 'next/image'
 import { useState, useEffect, useRef } from 'react'
-import { carouselOperations } from '../lib/carousel-operations'
+import { dataService } from '../lib/optimized-data-service'
 
 export default function CarouselSection() {
   const [carousel, setCarousel] = useState<any[]>([])
@@ -20,36 +20,18 @@ export default function CarouselSection() {
     loadCarouselFromAdmin()
   }, [])
 
-  // 只从管理后台数据库加载轮播图片（不包含默认内容）
+  // 使用优化的数据服务加载轮播数据
   const loadCarouselFromAdmin = async () => {
     if (typeof window !== 'undefined') {
       try {
-        console.log('🔄 开始从管理后台加载轮播数据...')
-        // 优先从数据库加载管理后台添加的轮播
-        const dbCarousel = await carouselOperations.getAll()
-        console.log('📊 管理后台轮播数据:', dbCarousel)
-        
-        if (dbCarousel && dbCarousel.length > 0) {
-          setCarousel(dbCarousel)
-          console.log('✅ 成功加载管理后台轮播，数量:', dbCarousel.length)
-          return
-        }
-        
-        console.log('⚠️ 管理后台暂无轮播数据')
-        setCarousel([])
+        console.log('🔄 从缓存或数据库加载轮播数据...')
+        // 使用优化的数据服务，自动处理缓存
+        const carouselData = await dataService.getCarousel()
+        setCarousel(carouselData)
+        console.log('✅ 轮播数据加载完成，数量:', carouselData.length)
       } catch (error) {
-        console.error('❌ 从管理后台加载轮播失败:', error)
-        console.log('🔄 尝试从localStorage加载...')
-        
-        // 如果数据库加载失败，回退到localStorage
-        try {
-          const localCarousel = JSON.parse(localStorage.getItem('custom_carousel') || '[]')
-          console.log('📋 localStorage轮播数据:', localCarousel)
-          setCarousel(localCarousel)
-        } catch (localError) {
-          console.error('❌ localStorage也加载失败:', localError)
-          setCarousel([])
-        }
+        console.error('❌ 轮播数据加载失败:', error)
+        setCarousel([])
       }
     }
   }

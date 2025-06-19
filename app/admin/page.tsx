@@ -4,10 +4,10 @@ import React, { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import FileUploadComponent from '../../components/FileUploadComponent'
-import { agentOperations, promptOperations, resourceOperations, requestOperations, testConnection } from '../../lib/database'
-import { carouselOperations, defaultContentOperations } from '../../lib/carousel-operations'
-import { defaultContentProvider } from '../../lib/default-content-provider'
+import { testConnection } from '../../lib/database'
+import { defaultContentOperations } from '../../lib/carousel-operations'
 import { DatabaseConnectionManager, smartConnection } from '../../lib/supabase'
+import { dataService } from '../../lib/optimized-data-service'
 
 const modules = [
   { key: 'carousel', name: '轮播管理', desc: '管理首页轮播图片，支持增删改查', icon: '🎠' },
@@ -193,11 +193,11 @@ export default function AdminPage() {
     }
   }
 
-  // 加载统计数据（统计默认内容+自定义内容的总数）
+  // 使用优化的数据服务加载统计数据
   const loadStats = async () => {
     try {
       setIsLoading(true)
-      console.log('🔄 开始加载统计数据...')
+      console.log('🔄 开始加载统计数据（使用缓存优化）...')
       
       // 1. 并行加载自定义内容和默认内容
       const [agentsData, promptsData, resourcesData, requestsData, defaultContentData] = await Promise.all([

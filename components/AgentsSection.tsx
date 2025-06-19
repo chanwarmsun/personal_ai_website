@@ -5,9 +5,8 @@ import { Bot, ExternalLink, Download, Play, Filter, Grid, List, Search, X, Spark
 import Image from 'next/image'
 import { useState, useEffect } from 'react'
 import CustomRequestModal from './CustomRequestModal'
-import { agentOperations } from '../lib/database'
 import { analytics } from '../lib/analytics'
-import { defaultContentProvider } from '../lib/default-content-provider'
+import { dataService } from '../lib/optimized-data-service'
 
 export default function AgentsSection() {
   const [defaultAgents, setDefaultAgents] = useState<any[]>([])
@@ -27,33 +26,25 @@ export default function AgentsSection() {
   // 处理客户端挂载
   useEffect(() => {
     setMounted(true)
-    loadDefaultAgents()
-    loadCustomAgents()
+    loadAllAgents()
   }, [])
 
-  // 从数据库加载默认智能体
-  const loadDefaultAgents = async () => {
+  // 使用优化的数据服务加载智能体数据
+  const loadAllAgents = async () => {
     try {
-      const agents = await defaultContentProvider.getAgents()
+      console.log('🔄 从缓存或数据库加载智能体数据...')
+      const agents = await dataService.getAgents()
+      
+      // 分离默认智能体和自定义智能体（如果需要单独显示）
+      // 这里简化为直接使用所有智能体
       setDefaultAgents(agents)
+      setCustomAgents([]) // 清空，因为已经合并到defaultAgents中
+      
+      console.log('✅ 智能体数据加载完成，数量:', agents.length)
     } catch (error) {
-      console.error('加载默认智能体失败:', error)
+      console.error('❌ 智能体数据加载失败:', error)
       setDefaultAgents([])
-    }
-  }
-
-  // 从数据库加载自定义智能体
-  const loadCustomAgents = async () => {
-    try {
-      const dbAgents = await agentOperations.getAll()
-      setCustomAgents(dbAgents)
-    } catch (error) {
-      console.error('加载自定义智能体失败:', error)
-      // 如果数据库加载失败，回退到localStorage
-      if (typeof window !== 'undefined' && localStorage) {
-        const localAgents = JSON.parse(localStorage.getItem('custom_agents') || '[]')
-        setCustomAgents(localAgents)
-      }
+      setCustomAgents([])
     }
   }
   
