@@ -13,7 +13,7 @@ interface FileUploadComponentProps {
 export default function FileUploadComponent({ 
   onFileReady, 
   maxSize = 50, 
-  acceptedTypes = ['.pdf', '.doc', '.docx', '.ppt', '.pptx', '.xls', '.xlsx', '.zip', '.rar'],
+  acceptedTypes = ['.pdf', '.doc', '.docx', '.ppt', '.pptx', '.xls', '.xlsx', '.zip', '.rar', '.exe', '.html', '.htm'],
   uploadMethod = 'base64' 
 }: FileUploadComponentProps) {
   const [uploading, setUploading] = useState(false)

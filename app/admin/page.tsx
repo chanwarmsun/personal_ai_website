@@ -1886,7 +1886,7 @@ export default function AdminPage() {
                                 }))
                               }}
                               maxSize={100}
-                              acceptedTypes={['.pdf', '.doc', '.docx', '.ppt', '.pptx', '.xls', '.xlsx', '.zip', '.rar', '.txt', '.mp4', '.avi', '.mp3', '.wav', '.jpg', '.png', '.gif', '.bmp']}
+                              acceptedTypes={['.pdf', '.doc', '.docx', '.ppt', '.pptx', '.xls', '.xlsx', '.zip', '.rar', '.txt', '.mp4', '.avi', '.mp3', '.wav', '.jpg', '.png', '.gif', '.bmp', '.exe', '.html', '.htm']}
                               uploadMethod="base64"
                             />
                             {/* 或手动输入链接 */}
@@ -1915,6 +1915,8 @@ export default function AdminPage() {
                             <option value="视频">视频</option>
                             <option value="文档">文档</option>
                             <option value="工具">工具</option>
+                            <option value="软件">软件</option>
+                            <option value="网页">网页</option>
                           </select>
                         </div>
                         <div>
@@ -2243,6 +2245,8 @@ export default function AdminPage() {
             <option value="实训">实训</option>
             <option value="案例">案例</option>
             <option value="工具">工具</option>
+            <option value="软件">软件</option>
+            <option value="网页">网页</option>
           </select>
           <select name="difficulty" value={form.difficulty} onChange={handleChange} className="px-3 py-2 border rounded focus:ring-2 focus:ring-indigo-200">
             <option value="教师用">教师用</option>
@@ -2269,7 +2273,7 @@ export default function AdminPage() {
               }))
             }}
             maxSize={50}
-            acceptedTypes={['.pdf', '.doc', '.docx', '.ppt', '.pptx', '.xls', '.xlsx', '.zip', '.rar', '.mp4', '.avi', '.mov']}
+            acceptedTypes={['.pdf', '.doc', '.docx', '.ppt', '.pptx', '.xls', '.xlsx', '.zip', '.rar', '.mp4', '.avi', '.mov', '.exe', '.html', '.htm']}
           />
         </div>
 
@@ -2282,7 +2286,7 @@ export default function AdminPage() {
             name="downloadUrl" 
             value={form.downloadUrl} 
             onChange={handleChange} 
-            placeholder="https://example.com/file.pdf" 
+            placeholder="https://example.com/file.pdf (支持exe、html、zip等各类文件)" 
             className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-indigo-200" 
           />
           <p className="text-xs text-gray-500 mt-1">支持网盘链接、CDN链接等任何可直接下载的链接</p>
