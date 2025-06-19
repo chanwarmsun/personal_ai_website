@@ -21,65 +21,50 @@
   "carousel": [
     {
       "id": "1",
-      "title": "AI教育创新实践",
+      "title": "AI赋能教育培训",
       "image": "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=800&h=400&fit=crop&auto=format",
-      "description": "探索AI技术在教育领域的创新应用"
+      "description": "为职业教育赋能，为教育教学提质增效"
     },
     {
       "id": "2", 
-      "title": "智能化教学工具",
+      "title": "RPA机器人流程自动化定制开发",
       "image": "https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?w=800&h=400&fit=crop&auto=format",
-      "description": "打造高效智能的教学辅助工具"
+      "description": "RPA助力产业发展，引领职业教育数字化转型的新时代"
     },
     {
       "id": "3",
-      "title": "个性化学习体验",
+      "title": "AI智能体定制开发",
       "image": "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&h=400&fit=crop&auto=format", 
-      "description": "为每个学习者定制专属的AI学习方案"
-    },
-    {
-      "id": "4",
-      "title": "教育数字化转型",
-      "image": "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=800&h=400&fit=crop&auto=format",
-      "description": "引领教育行业的数字化变革之路"
+      "description": "为师生提供专业的AI智能体以辅助教学"
     }
   ],
   "agents": [
     {
       "id": "1",
-      "name": "智能写作助手",
-      "description": "帮助您创作高质量的文章和内容",
-      "image": "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=300&h=200&fit=crop",
+      "name": "AI赋能教育培训",
+      "description": "为职业教育赋能，为教育教学提质增效",
+      "image": "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=300&h=200&fit=crop",
       "type": "chat",
-      "url": "https://botpress.com/agent/writing-assistant",
-      "tags": ["写作", "内容创作", "AI"]
+      "url": "#contact",
+      "tags": ["AI教育", "培训", "教学"]
     },
     {
       "id": "2",
-      "name": "代码生成器",
-      "description": "自动生成高质量的代码片段",
-      "image": "https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=300&h=200&fit=crop",
-      "type": "download",
-      "url": "/downloads/code-generator.zip",
-      "tags": ["编程", "开发", "自动化"]
+      "name": "RPA机器人流程自动化定制开发",
+      "description": "RPA助力产业发展，引领职业教育数字化转型的新时代",
+      "image": "https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?w=300&h=200&fit=crop",
+      "type": "chat",
+      "url": "#contact",
+      "tags": ["RPA", "自动化", "定制开发"]
     },
     {
       "id": "3",
-      "name": "数据分析专家",
-      "description": "专业的数据分析和可视化工具",
-      "image": "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=300&h=200&fit=crop",
+      "name": "AI智能体定制开发",
+      "description": "为师生提供专业的AI智能体以辅助教学",
+      "image": "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=300&h=200&fit=crop",
       "type": "chat",
-      "url": "https://rasa.com/agent/data-analyst",
-      "tags": ["数据分析", "可视化", "商业智能"]
-    },
-    {
-      "id": "4",
-      "name": "设计灵感机器人",
-      "description": "为您的设计项目提供创意灵感",
-      "image": "https://images.unsplash.com/photo-1558655146-d09347e92766?w=300&h=200&fit=crop",
-      "type": "chat",
-      "url": "https://botpress.com/agent/design-inspiration",
-      "tags": ["设计", "创意", "灵感"]
+      "url": "#contact",
+      "tags": ["智能体", "定制开发", "教学辅助"]
     }
   ],
   "prompts": [

@@ -156,6 +156,9 @@ export default function AdminPage() {
   const loadStats = async () => {
     try {
       setIsLoading(true)
+      console.log('🔄 开始加载统计数据...')
+      
+      // 1. 加载数据库中的自定义内容
       const [agentsData, promptsData, resourcesData, requestsData] = await Promise.all([
         agentOperations.getAll(),
         promptOperations.getAll(),
@@ -163,14 +166,60 @@ export default function AdminPage() {
         requestOperations.getAll()
       ])
       
-      setStats({
+      console.log('📊 自定义内容数量:', {
         agents: agentsData.length,
         prompts: promptsData.length,
         resources: resourcesData.length,
         requests: requestsData.length
       })
+      
+      // 2. 加载默认内容数量
+      let defaultContentCounts = { agents: 0, prompts: 0, teachingResources: 0 }
+      try {
+        // 尝试从已加载的默认内容获取
+        if (defaultContent && Object.keys(defaultContent).length > 0) {
+          defaultContentCounts = {
+            agents: defaultContent.agents?.length || 0,
+            prompts: defaultContent.prompts?.length || 0,
+            teachingResources: defaultContent.teachingResources?.length || 0
+          }
+        } else {
+          // 如果默认内容未加载，从文件获取
+          const response = await fetch('/data/content.json')
+          if (response.ok) {
+            const fileData = await response.json()
+            defaultContentCounts = {
+              agents: fileData.agents?.length || 0,
+              prompts: fileData.prompts?.length || 0,
+              teachingResources: fileData.teachingResources?.length || 0
+            }
+          }
+        }
+        console.log('📋 默认内容数量:', defaultContentCounts)
+      } catch (error) {
+        console.warn('⚠️ 获取默认内容数量失败:', error)
+      }
+      
+      // 3. 计算总数量（默认内容 + 自定义内容）
+      const totalStats = {
+        agents: (defaultContentCounts.agents || 0) + agentsData.length,
+        prompts: (defaultContentCounts.prompts || 0) + promptsData.length,
+        resources: (defaultContentCounts.teachingResources || 0) + resourcesData.length,
+        requests: requestsData.length // 定制申请只统计数据库中的
+      }
+      
+      console.log('📈 总统计数据:', totalStats)
+      setStats(totalStats)
+      
     } catch (error) {
-      console.error('加载统计数据失败:', error)
+      console.error('❌ 加载统计数据失败:', error)
+      // 出错时设置默认值
+      setStats({
+        agents: 0,
+        prompts: 0,
+        resources: 0,
+        requests: 0
+      })
     } finally {
       setIsLoading(false)
     }
@@ -199,13 +248,16 @@ export default function AdminPage() {
     // 检查数据库连接
     checkDatabaseConnection()
     
-    // 加载数据
-    loadCarousel()
-    loadAgents()
-    loadPrompts()
-    loadResources()
-    loadRequests()
-    loadDefaultContent()
+    // 先加载默认内容，再加载其他数据
+    loadDefaultContent().then(() => {
+      // 默认内容加载完成后，再加载其他数据以确保统计正确
+      loadCarousel()
+      loadAgents()
+      loadPrompts()
+      loadResources()
+      loadRequests()
+      loadStats() // 重新加载统计数据
+    })
     
     // 定期检查数据库连接状态
     const connectionInterval = setInterval(checkDatabaseConnection, 30000)
@@ -312,16 +364,54 @@ export default function AdminPage() {
 
   const loadCarousel = async () => {
     try {
+      console.log('🔄 开始加载轮播数据...')
+      
+      // 1. 从数据库加载自定义轮播
       const carouselData = await carouselOperations.getAll()
-      const formattedData = carouselData.map(item => ({
-        id: item.id,
-        title: item.title,
-        image: item.image,
-        description: item.description
-      }))
-      setCarousel(formattedData)
+      console.log('📊 从数据库获取的轮播数据:', carouselData)
+      
+      // 2. 从默认内容加载默认轮播
+      let defaultCarousels = []
+      try {
+        // 优先从已加载的默认内容获取
+        if (defaultContent?.carousel) {
+          defaultCarousels = defaultContent.carousel
+        } else {
+          // 如果默认内容未加载，从文件获取
+          const response = await fetch('/data/content.json')
+          if (response.ok) {
+            const fileData = await response.json()
+            defaultCarousels = fileData.carousel || []
+          }
+        }
+        console.log('📋 默认轮播数据:', defaultCarousels)
+      } catch (error) {
+        console.warn('⚠️ 加载默认轮播失败，仅显示自定义轮播:', error)
+      }
+      
+      // 3. 合并数据：默认轮播 + 自定义轮播
+      const allCarousels = [
+        ...defaultCarousels.map((item: any) => ({
+          id: item.id,
+          title: item.title,
+          image: item.image,
+          description: item.description,
+          isDefault: true // 标记为默认内容
+        })),
+        ...carouselData.map(item => ({
+          id: item.id,
+          title: item.title,
+          image: item.image,
+          description: item.description,
+          isDefault: false // 标记为自定义内容
+        }))
+      ]
+      
+      console.log('🎠 合并后的轮播数据:', allCarousels)
+      setCarousel(allCarousels)
+      
     } catch (error) {
-      console.error('加载轮播数据失败:', error)
+      console.error('❌ 加载轮播数据失败:', error)
       // 回退到localStorage
       const saved = localStorage.getItem('custom_carousel')
       if (saved) {
@@ -1092,7 +1182,7 @@ export default function AdminPage() {
   const renderCarouselModule = () => (
     <div>
       <h2 className="text-xl font-bold mb-4 text-indigo-600">轮播管理</h2>
-      <p className="text-sm text-gray-500 mb-6">管理首页轮播图片，新增的图片将显示在首页轮播中</p>
+      <p className="text-sm text-gray-500 mb-6">管理首页轮播图片。系统包含默认轮播内容，您可以添加自定义轮播图片。标有"默认"的为系统预设内容，不可编辑。</p>
       
       {/* 图片尺寸提示 */}
       <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
@@ -1112,16 +1202,30 @@ export default function AdminPage() {
       
       {/* 列表 */}
       <div className="mb-8">
-        {carousel.length === 0 && <div className="text-gray-400 text-center py-8">暂无自定义轮播图片</div>}
+        {carousel.length === 0 && <div className="text-gray-400 text-center py-8">暂无轮播图片</div>}
         {carousel.map((item, i) => (
           <div key={i} className="flex items-center gap-4 border-b py-3">
             <img src={item.image || '/placeholder.png'} alt="轮播图" className="w-20 h-12 rounded-lg object-cover bg-gray-100 border" />
             <div className="flex-1 min-w-0">
-              <div className="font-bold text-indigo-700 truncate">{item.title}</div>
+              <div className="flex items-center gap-2">
+                <div className="font-bold text-indigo-700 truncate">{item.title}</div>
+                {/* 标识是否为默认内容 */}
+                {item.isDefault && (
+                  <span className="px-2 py-1 text-xs bg-blue-100 text-blue-600 rounded-full">默认</span>
+                )}
+              </div>
               <div className="text-gray-500 text-sm truncate">{item.description}</div>
             </div>
-            <button onClick={() => handleEdit(i)} className="px-3 py-1 text-xs rounded bg-indigo-50 text-indigo-600 hover:bg-indigo-100 mr-2">编辑</button>
-            <button onClick={() => handleDelete(i)} className="px-3 py-1 text-xs rounded bg-red-50 text-red-600 hover:bg-red-100">删除</button>
+            {/* 默认内容不能编辑和删除 */}
+            {!item.isDefault && (
+              <>
+                <button onClick={() => handleEdit(i)} className="px-3 py-1 text-xs rounded bg-indigo-50 text-indigo-600 hover:bg-indigo-100 mr-2">编辑</button>
+                <button onClick={() => handleDelete(i)} className="px-3 py-1 text-xs rounded bg-red-50 text-red-600 hover:bg-red-100">删除</button>
+              </>
+            )}
+            {item.isDefault && (
+              <span className="text-xs text-gray-400 px-3 py-1">系统内容</span>
+            )}
           </div>
         ))}
       </div>
@@ -2123,6 +2227,17 @@ export default function AdminPage() {
         </div>
 
                  {/* 统计卡片 */}
+         <div className="mb-4">
+           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+             <div className="flex items-start gap-2">
+               <span className="text-blue-600">📊</span>
+               <div className="text-sm text-blue-800">
+                 <strong>统计说明：</strong>
+                 以下数量包含系统默认内容和用户自定义内容的总数。默认内容来自网站预设，自定义内容通过管理后台添加。
+               </div>
+             </div>
+           </div>
+         </div>
          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
            <div className="bg-white rounded-lg shadow-sm p-6 border">
              <div className="flex items-center justify-between">

@@ -4,13 +4,11 @@ import { motion } from 'framer-motion'
 import { ChevronLeft, ChevronRight, Play, Pause } from 'lucide-react'
 import Image from 'next/image'
 import { useState, useEffect, useRef } from 'react'
-import { defaultContentProvider } from '../lib/default-content-provider'
 import { carouselOperations } from '../lib/carousel-operations'
 
 export default function CarouselSection() {
-  const [defaultCarousel, setDefaultCarousel] = useState<any[]>([])
+  const [carousel, setCarousel] = useState<any[]>([])
   const [isAutoPlaying, setIsAutoPlaying] = useState(true)
-  const [customCarousel, setCustomCarousel] = useState<any[]>([])
   const [mounted, setMounted] = useState(false)
   const [currentTranslate, setCurrentTranslate] = useState(0)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
@@ -19,48 +17,51 @@ export default function CarouselSection() {
   // 处理客户端挂载
   useEffect(() => {
     setMounted(true)
-    loadDefaultCarousel()
-    loadCustomCarousel()
+    loadCarouselFromAdmin()
   }, [])
 
-  // 从数据库加载默认轮播
-  const loadDefaultCarousel = async () => {
-    try {
-      const carousel = await defaultContentProvider.getCarousel()
-      setDefaultCarousel(carousel)
-    } catch (error) {
-      console.error('加载默认轮播失败:', error)
-      setDefaultCarousel([])
-    }
-  }
-
-  // 从数据库和localStorage加载自定义轮播图片
-  const loadCustomCarousel = async () => {
+  // 只从管理后台数据库加载轮播图片（不包含默认内容）
+  const loadCarouselFromAdmin = async () => {
     if (typeof window !== 'undefined') {
       try {
-        // 首先尝试从数据库加载
+        console.log('🔄 开始从管理后台加载轮播数据...')
+        // 优先从数据库加载管理后台添加的轮播
         const dbCarousel = await carouselOperations.getAll()
+        console.log('📊 管理后台轮播数据:', dbCarousel)
+        
         if (dbCarousel && dbCarousel.length > 0) {
-          setCustomCarousel(dbCarousel)
+          setCarousel(dbCarousel)
+          console.log('✅ 成功加载管理后台轮播，数量:', dbCarousel.length)
           return
         }
+        
+        console.log('⚠️ 管理后台暂无轮播数据')
+        setCarousel([])
       } catch (error) {
-        console.log('从数据库加载轮播失败，尝试从localStorage加载')
+        console.error('❌ 从管理后台加载轮播失败:', error)
+        console.log('🔄 尝试从localStorage加载...')
+        
+        // 如果数据库加载失败，回退到localStorage
+        try {
+          const localCarousel = JSON.parse(localStorage.getItem('custom_carousel') || '[]')
+          console.log('📋 localStorage轮播数据:', localCarousel)
+          setCarousel(localCarousel)
+        } catch (localError) {
+          console.error('❌ localStorage也加载失败:', localError)
+          setCarousel([])
+        }
       }
-      
-      // 回退到localStorage
-      const localCarousel = JSON.parse(localStorage.getItem('custom_carousel') || '[]')
-      setCustomCarousel(localCarousel)
     }
   }
   
-  // 合并默认轮播和自定义轮播，复制多遍实现无限滚动
-  const originalCarousel = mounted ? [...defaultCarousel, ...customCarousel] : defaultCarousel
-  const carousel = [...originalCarousel, ...originalCarousel, ...originalCarousel] // 复制三遍用于无限滚动
+  // 复制轮播内容用于无限滚动（只复制管理后台的内容）
+  const originalCarousel = mounted ? carousel : []
+  const displayCarousel = originalCarousel.length > 0 ? 
+    [...originalCarousel, ...originalCarousel, ...originalCarousel] : [] // 复制三遍用于无限滚动
   
   // 平缓自动滚动
   useEffect(() => {
-    if (!isAutoPlaying || carousel.length === 0) {
+    if (!isAutoPlaying || displayCarousel.length === 0) {
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current)
       }
@@ -92,7 +93,7 @@ export default function CarouselSection() {
         cancelAnimationFrame(animationRef.current)
       }
     }
-  }, [isAutoPlaying, carousel.length, originalCarousel.length])
+  }, [isAutoPlaying, displayCarousel.length, originalCarousel.length])
 
   const scrollLeft = () => {
     setCurrentTranslate(prev => {
@@ -124,7 +125,39 @@ export default function CarouselSection() {
     setIsAutoPlaying(!isAutoPlaying)
   }
 
-  if (carousel.length === 0) return null
+  // 如果管理后台没有轮播内容，显示提示信息
+  if (originalCarousel.length === 0) {
+    return (
+      <section className="py-16 bg-gradient-to-br from-slate-50 to-blue-50/30">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            viewport={{ once: true }}
+            className="text-center"
+          >
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+              精彩瞬间
+            </h2>
+            <div className="bg-white rounded-2xl p-12 shadow-lg">
+              <div className="text-gray-500 mb-4">
+                <svg className="w-16 h-16 mx-auto mb-4 opacity-50" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <p className="text-lg text-gray-600">
+                暂无轮播内容，请在管理后台添加轮播图片
+              </p>
+              <p className="text-sm text-gray-500 mt-2">
+                管理员可以通过后台管理页面添加精彩的轮播图片
+              </p>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+    )
+  }
 
   return (
     <section className="py-16 bg-gradient-to-br from-slate-50 to-blue-50/30">
@@ -174,7 +207,7 @@ export default function CarouselSection() {
               className="flex transition-none"
               style={{ transform: `translateX(${currentTranslate}px)` }}
             >
-              {carousel.map((item, index) => (
+              {displayCarousel.map((item, index) => (
                 <motion.div
                   key={`${item.id}-${index}`}
                   className="flex-none w-80 mx-2"
