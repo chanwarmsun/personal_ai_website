@@ -10,7 +10,6 @@ export default function CarouselSection() {
   const [carousel, setCarousel] = useState<any[]>([])
   const [isAutoPlaying, setIsAutoPlaying] = useState(true)
   const [mounted, setMounted] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
   const [currentTranslate, setCurrentTranslate] = useState(0)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const animationRef = useRef<number>()
@@ -21,31 +20,6 @@ export default function CarouselSection() {
     loadCarouselFromAdmin()
   }, [])
 
-  // 快速检查缓存，减少加载时间
-  useEffect(() => {
-    if (mounted) {
-      // 先尝试从缓存获取数据，如果有就立即显示
-      const tryGetCachedData = async () => {
-        try {
-          // 先检查是否有缓存的数据
-          const cachedData = localStorage.getItem('carousel-cache')
-          if (cachedData) {
-            const parsed = JSON.parse(cachedData)
-            if (parsed.data && parsed.expiry > Date.now()) {
-              setCarousel(parsed.data)
-              setIsLoading(false)
-              console.log('✅ 从本地缓存快速加载轮播数据')
-              return
-            }
-          }
-        } catch (error) {
-          console.log('本地缓存检查失败，继续常规加载')
-        }
-      }
-      tryGetCachedData()
-    }
-  }, [mounted])
-
   // 使用优化的数据服务加载轮播数据
   const loadCarouselFromAdmin = async () => {
     if (typeof window !== 'undefined') {
@@ -54,24 +28,10 @@ export default function CarouselSection() {
         // 使用优化的数据服务，自动处理缓存
         const carouselData = await dataService.getCarousel()
         setCarousel(carouselData)
-        setIsLoading(false)
-        
-        // 缓存到本地存储，设置30分钟有效期
-        try {
-          const cacheData = {
-            data: carouselData,
-            expiry: Date.now() + 30 * 60 * 1000 // 30分钟缓存
-          }
-          localStorage.setItem('carousel-cache', JSON.stringify(cacheData))
-        } catch (error) {
-          console.log('缓存写入失败:', error)
-        }
-        
         console.log('✅ 轮播数据加载完成，数量:', carouselData.length)
       } catch (error) {
         console.error('❌ 轮播数据加载失败:', error)
         setCarousel([])
-        setIsLoading(false)
       }
     }
   }
@@ -147,36 +107,8 @@ export default function CarouselSection() {
     setIsAutoPlaying(!isAutoPlaying)
   }
 
-  // 加载状态显示
-  if (isLoading && mounted) {
-    return (
-      <section className="py-16 bg-gradient-to-br from-slate-50 to-blue-50/30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="text-center"
-          >
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              精彩瞬间
-            </h2>
-            <div className="bg-white rounded-2xl p-12 shadow-lg">
-              <div className="flex items-center justify-center mb-4">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-              </div>
-              <p className="text-lg text-gray-600">
-                正在加载精彩内容...
-              </p>
-            </div>
-          </motion.div>
-        </div>
-      </section>
-    )
-  }
-
   // 如果管理后台没有轮播内容，显示提示信息
-  if (originalCarousel.length === 0 && !isLoading) {
+  if (originalCarousel.length === 0) {
     return (
       <section className="py-16 bg-gradient-to-br from-slate-50 to-blue-50/30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

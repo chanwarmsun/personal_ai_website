@@ -118,16 +118,14 @@ export default function PersonalInfo() {
                   {personalInfo.title}
                 </motion.p>
                 
-                <motion.div
+                <motion.p
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ duration: 0.6, delay: 0.5 }}
                   className="text-gray-600 mb-4 leading-relaxed"
                 >
-                  {personalInfo.slogan.split('\n').map((line, index) => (
-                    <p key={index} className="mb-1">{line}</p>
-                  ))}
-                </motion.div>
+                  {personalInfo.slogan}
+                </motion.p>
                 
                 <motion.p
                   initial={{ opacity: 0, x: -20 }}

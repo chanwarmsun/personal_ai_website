@@ -2,8 +2,8 @@
   "personalInfo": {
     "name": "陈老师AI进化论",
     "title": "AI自动化工作流架构师",
-    "slogan": "专注AI智能体-RPA-AI编程\n不只教AI工具，更带你搭建自动化教学系统\n帮助教师从重复性工作中彻底解放出来，回归教育与创造的本质",
-    "bio": "专注AI教育与实践应用，致力于将复杂的AI技术转化为易懂的教学内容",
+    "slogan": "专注AI智能体-RPA-AI编程",
+    "bio": "不只教AI工具，更带你搭建自动化教学系统",
     "avatar": "/images/my-avatar.jpg",
          "skills": [
        { "name": "AI教育", "level": 95 },
