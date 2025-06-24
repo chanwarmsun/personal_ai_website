@@ -1,5 +1,3 @@
-'use client'
-
 import './globals.css'
 import { Inter } from 'next/font/google'
 
@@ -19,11 +17,6 @@ export default function RootLayout({
   return (
     <html lang="zh-CN">
       <head>
-        <title>陈老师AI进化论 - AI教育与数字化转型专家</title>
-        <meta name="description" content="陈老师AI进化论：专注于AI教育培训、RPA机器人流程自动化、智能体定制开发。为职业教育赋能，引领教育数字化转型新时代。" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta name="keywords" content="AI教育,人工智能培训,RPA自动化,智能体开发,教育数字化,职业培训" />
-        
         {/* 性能优化 */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
