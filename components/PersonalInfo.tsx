@@ -59,6 +59,7 @@ export default function PersonalInfo() {
     { icon: MessageCircle, url: personalInfo.links.wechat, label: '微信', qrCode: '/qr-wechat.png' },
     { icon: Users, url: personalInfo.links.qq, label: 'QQ', qrCode: '/qr-qq.png' },
     { icon: Bookmark, url: '#', label: '小红书', qrCode: '/qr-xiaohongshu.png' },
+    { icon: ExternalLink, url: '#', label: '视频号', qrCode: '/qr-videohaо.png' },
   ]
 
   return (
