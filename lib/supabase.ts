@@ -1,8 +1,14 @@
 import { createClient } from '@supabase/supabase-js'
 import { dbLogger } from './logger'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://mvrikhctrwowswcamkfj.supabase.co'
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im12cmlraGN0cndvd3N3Y2Fta2ZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk4MzUyMjIsImV4cCI6MjA2NTQxMTIyMn0.xFEVSItfhhgI7Ow9-2v0Bz1MNdGaW2QQEtEn2PaA4kg'
+// 从环境变量获取Supabase配置
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+// 验证必需的环境变量
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('缺少必需的Supabase环境变量。请检查.env.local文件中的NEXT_PUBLIC_SUPABASE_URL和NEXT_PUBLIC_SUPABASE_ANON_KEY配置。')
+}
 
 // 创建增强配置的Supabase客户端
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
@@ -568,4 +574,4 @@ export class SmartConnectionManager {
 }
 
 // 导出智能连接管理器实例
-export const smartConnection = SmartConnectionManager.getInstance() 
+export const smartConnection = SmartConnectionManager.getInstance()
