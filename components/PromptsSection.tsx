@@ -1,0 +1,261 @@
+'use client'
+
+import { motion } from 'framer-motion'
+import { Hash, Download, Copy, TrendingUp } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import CustomRequestModal from './CustomRequestModal'
+import { promptOperations } from '../lib/database'
+import { analytics } from '../lib/analytics'
+import { defaultContentProvider } from '../lib/default-content-provider'
+
+export default function PromptsSection() {
+  const [allPrompts, setAllPrompts] = useState<any[]>([])
+  const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [showRequestModal, setShowRequestModal] = useState(false)
+  const [mounted, setMounted] = useState(false)
+  
+  // 分页状态 - 不影响现有功能
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage] = useState(4) // 每页显示4个提示词
+  const [showAllMode, setShowAllMode] = useState(false) // 是否显示全部模式
+
+  useEffect(() => {
+    setMounted(true)
+    loadDefaultAndCustomPrompts()
+  }, [])
+
+  // 加载默认和自定义提示词
+  const loadDefaultAndCustomPrompts = async () => {
+    try {
+      // 加载默认提示词
+      const defaultPrompts = await defaultContentProvider.getPrompts()
+      // 加载自定义提示词
+      const dbPrompts = await promptOperations.getAll()
+      
+      setAllPrompts([...defaultPrompts, ...dbPrompts])
+    } catch (error) {
+      console.error('加载提示词失败:', error)
+      // 如果数据库加载失败，回退到localStorage
+      if (typeof window !== 'undefined' && localStorage) {
+        const customPrompts = localStorage.getItem('custom_prompts')
+        if (customPrompts) {
+          const parsed = JSON.parse(customPrompts)
+          setAllPrompts(parsed)
+        }
+      }
+    }
+  }
+
+  const handleCopy = async (content: string, id: string) => {
+    try {
+      await navigator.clipboard.writeText(content)
+      setCopiedId(id)
+      setTimeout(() => setCopiedId(null), 2000)
+    } catch (err) {
+      console.error('复制失败:', err)
+    }
+  }
+
+  const handleDownload = (prompt: any) => {
+    // 记录提示词下载统计
+    analytics.trackPromptDownload(prompt.title)
+    
+    const blob = new Blob([prompt.content], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${prompt.title}.txt`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
+
+  const formatDownloads = (count: number) => {
+    if (count >= 1000) {
+      return `${(count / 1000).toFixed(1)}k`
+    }
+    return count.toString()
+  }
+
+  // 分页逻辑
+  const totalPages = Math.ceil(allPrompts.length / itemsPerPage)
+  const currentPrompts = showAllMode 
+    ? allPrompts // 显示全部模式：显示所有提示词
+    : allPrompts.slice(0, currentPage * itemsPerPage) // 分页模式：显示前N页的内容
+
+  return (
+    <section id="prompts" className="py-16">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          viewport={{ once: true }}
+          className="text-center mb-12"
+        >
+          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+            精选提示词
+          </h2>
+          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+            经过实践验证的高质量提示词，助您释放AI的无限潜能
+          </p>
+        </motion.div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {currentPrompts.map((prompt, index) => (
+            <motion.div
+              key={prompt.id}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: index * 0.1 }}
+              viewport={{ once: true }}
+              className="bento-card group"
+            >
+              <div className="flex items-start gap-4 mb-4">
+                <div className="p-3 bg-violet-100 rounded-xl">
+                  <Hash size={24} className="text-violet-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">
+                    {prompt.title}
+                  </h3>
+                  <p className="text-gray-600 text-sm leading-relaxed">
+                    {prompt.description}
+                  </p>
+                </div>
+              </div>
+
+              {/* 提示词内容预览 */}
+              <div className="bg-gray-50 rounded-xl p-4 mb-4">
+                <p className="text-sm text-gray-700 leading-relaxed line-clamp-3">
+                  {prompt.content}
+                </p>
+              </div>
+
+              {/* 标签和下载统计 */}
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex flex-wrap gap-2">
+                  {prompt.tags.map((tag: string) => (
+                    <span
+                      key={tag}
+                      className="px-3 py-1 bg-violet-50 text-violet-600 text-sm rounded-full"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+                <div className="flex items-center text-sm text-gray-500">
+                  <TrendingUp size={16} className="mr-1" />
+                  {formatDownloads(prompt.downloads)} 下载
+                </div>
+              </div>
+
+              {/* 操作按钮 */}
+              <div className="flex gap-3">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => handleCopy(prompt.content, prompt.id)}
+                  className="btn-bounce flex-1 flex items-center justify-center gap-2 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-all duration-300"
+                >
+                  <Copy size={18} />
+                  {copiedId === prompt.id ? '已复制!' : '复制'}
+                </motion.button>
+                
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => handleDownload(prompt)}
+                  className="btn-bounce flex-1 flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-all duration-300"
+                >
+                  <Download size={18} />
+                  下载
+                </motion.button>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+
+        {/* 分页控制 - 只在有多页内容时显示 */}
+        {allPrompts.length > itemsPerPage && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.3 }}
+            viewport={{ once: true }}
+            className="flex flex-col items-center gap-4 mt-8"
+          >
+            {!showAllMode && currentPrompts.length < allPrompts.length && (
+              <div className="flex flex-col sm:flex-row items-center gap-3">
+                <p className="text-sm text-gray-600">
+                  显示 <span className="font-semibold text-violet-600">{currentPrompts.length}</span> / 
+                  <span className="font-semibold">{allPrompts.length}</span> 个提示词
+                </p>
+                <div className="flex gap-2">
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setCurrentPage(prev => prev + 1)}
+                    className="btn-bounce px-4 py-2 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-lg font-medium shadow-lg hover:shadow-xl transition-all duration-300"
+                  >
+                    加载更多 ({allPrompts.length - currentPrompts.length})
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setShowAllMode(true)}
+                    className="btn-bounce px-4 py-2 border-2 border-violet-600 text-violet-600 rounded-lg font-medium hover:bg-violet-600 hover:text-white transition-all duration-300"
+                  >
+                    显示全部
+                  </motion.button>
+                </div>
+              </div>
+            )}
+            
+            {showAllMode && (
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  setShowAllMode(false)
+                  setCurrentPage(1)
+                }}
+                className="btn-bounce px-4 py-2 border-2 border-gray-400 text-gray-600 rounded-lg font-medium hover:bg-gray-100 transition-all duration-300"
+              >
+                收起显示
+              </motion.button>
+            )}
+          </motion.div>
+        )}
+
+        {/* 更多提示词 */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.4 }}
+          viewport={{ once: true }}
+          className="text-center mt-12"
+        >
+          <p className="text-gray-500 mb-4">更多高质量提示词正在整理中...</p>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setShowRequestModal(true)}
+            className="btn-bounce inline-flex items-center px-6 py-3 border-2 border-violet-600 text-violet-600 rounded-xl font-medium hover:bg-violet-600 hover:text-white transition-all duration-300"
+          >
+            <Hash size={20} className="mr-2" />
+            定制提示词
+          </motion.button>
+        </motion.div>
+      </div>
+      
+      {/* 定制申请模态框 */}
+      <CustomRequestModal
+        isOpen={showRequestModal}
+        onClose={() => setShowRequestModal(false)}
+        type="prompt"
+      />
+    </section>
+  )
+} 

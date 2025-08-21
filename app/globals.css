@@ -1,0 +1,140 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    overflow-x: hidden;
+  }
+  
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  * {
+    scroll-behavior: smooth;
+    will-change: auto;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: rgba(99, 102, 241, 0.3);
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(99, 102, 241, 0.5);
+  }
+}
+
+@layer components {
+  .bento-card {
+    @apply bg-white/90 backdrop-blur-sm rounded-3xl p-6 shadow-lg hover:shadow-2xl transition-all duration-500 border border-white/30 will-change-transform;
+  }
+  
+  .bento-card:hover {
+    @apply transform -translate-y-2 bg-white/95 scale-[1.02] shadow-indigo-500/20;
+  }
+  
+  .glass-effect {
+    @apply bg-white/10 backdrop-blur-md border border-white/20;
+  }
+  
+  .gradient-text {
+    @apply bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 bg-clip-text text-transparent;
+  }
+
+  .btn-bounce {
+    @apply transition-all duration-300 hover:scale-105 hover:shadow-lg active:scale-95;
+  }
+
+  .card-interactive {
+    @apply transition-all duration-500 hover:scale-[1.02] hover:-translate-y-1 hover:shadow-xl;
+  }
+
+  .qr-tooltip {
+    @apply absolute -top-4 -right-4 bg-white rounded-2xl p-4 shadow-2xl border border-gray-100 opacity-0 pointer-events-none z-50;
+    transform: scale(0.1) rotate(-8deg);
+    transform-origin: bottom left;
+    filter: drop-shadow(0 20px 30px rgb(0 0 0 / 0.2));
+    min-width: 180px;
+    transition: all 0.1s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  }
+
+  .qr-tooltip.show {
+    @apply opacity-100 pointer-events-auto;
+    animation: instantBounce 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  }
+
+  .qr-tooltip::before {
+    content: '';
+    position: absolute;
+    bottom: 16px;
+    left: -6px;
+    width: 0;
+    height: 0;
+    border-top: 6px solid transparent;
+    border-bottom: 6px solid transparent;
+    border-right: 6px solid white;
+    filter: drop-shadow(-1px 0 1px rgb(0 0 0 / 0.1));
+  }
+
+  .qr-card {
+    @apply relative overflow-hidden rounded-2xl bg-gradient-to-br from-gray-50 to-gray-100 p-4 transition-all duration-300;
+  }
+
+  .qr-shimmer {
+    @apply absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent;
+    animation: shimmer 2s infinite;
+  }
+
+  /* 极速弹出时的微妙光晕效果 */
+  .qr-tooltip.show::after {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1));
+    border-radius: 1rem;
+    z-index: -1;
+    animation: glowPulse 0.6s ease-out;
+  }
+
+  @keyframes glowPulse {
+    0% { 
+      opacity: 0;
+      transform: scale(0.8);
+    }
+    50% { 
+      opacity: 1;
+      transform: scale(1.05);
+    }
+    100% { 
+      opacity: 0;
+      transform: scale(1);
+    }
+  }
+}
+
+@layer utilities {
+  .animation-delay-200 {
+    animation-delay: 200ms;
+  }
+  
+  .animation-delay-400 {
+    animation-delay: 400ms;
+  }
+  
+  .animation-delay-600 {
+    animation-delay: 600ms;
+  }
+} 

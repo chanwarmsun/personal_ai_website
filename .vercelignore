@@ -1,0 +1,27 @@
+# Vercel ignore file
+.git
+.env*.local
+.next
+node_modules
+*.log
+
+# 开发工具和文档
+.cursor
+dist
+
+# 开发脚本（保留必要的运行时脚本）
+/scripts/*.ps1
+/scripts/debug-*.js
+/scripts/test-*.js
+/scripts/create-*.js
+/scripts/fix-*.js
+/scripts/check-*.js
+/scripts/restore-*.js
+/scripts/cleanup-*.js
+/scripts/*.sql
+/scripts/*.ts
+/scripts/*.md
+
+# 文档文件
+*.md
+!readme.md 

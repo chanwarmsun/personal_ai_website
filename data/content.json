@@ -1,0 +1,146 @@
+{
+  "personalInfo": {
+    "name": "陈老师AI进化论",
+    "title": "AI自动化工作流架构师",
+    "slogan": "专注AI智能体-RPA-AI编程",
+    "bio": "不只教AI工具，更带你搭建自动化教学系统",
+    "avatar": "/images/my-avatar.jpg",
+         "skills": [
+       { "name": "AI教育", "level": 95 },
+       { "name": "课程设计", "level": 90 },
+       { "name": "智能体开发", "level": 95 },
+       { "name": "教学创新", "level": 92 }
+     ],
+     "links": {
+       "resume": "/resume.pdf",
+       "wechat": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+       "qq": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+       "gongzhonghao": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+     }
+  },
+  "carousel": [
+    {
+      "id": "1",
+      "title": "AI赋能教育培训",
+      "image": "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=800&h=400&fit=crop&auto=format",
+      "description": "为职业教育赋能，为教育教学提质增效"
+    },
+    {
+      "id": "2", 
+      "title": "RPA机器人流程自动化定制开发",
+      "image": "https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?w=800&h=400&fit=crop&auto=format",
+      "description": "RPA助力产业发展，引领职业教育数字化转型的新时代"
+    },
+    {
+      "id": "3",
+      "title": "AI智能体定制开发",
+      "image": "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&h=400&fit=crop&auto=format", 
+      "description": "为师生提供专业的AI智能体以辅助教学"
+    }
+  ],
+  "agents": [
+    {
+      "id": "1",
+      "name": "AI赋能教育培训",
+      "description": "为职业教育赋能，为教育教学提质增效",
+      "image": "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=300&h=200&fit=crop",
+      "type": "chat",
+      "url": "#contact",
+      "tags": ["AI教育", "培训", "教学"]
+    },
+    {
+      "id": "2",
+      "name": "RPA机器人流程自动化定制开发",
+      "description": "RPA助力产业发展，引领职业教育数字化转型的新时代",
+      "image": "https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?w=300&h=200&fit=crop",
+      "type": "chat",
+      "url": "#contact",
+      "tags": ["RPA", "自动化", "定制开发"]
+    },
+    {
+      "id": "3",
+      "name": "AI智能体定制开发",
+      "description": "为师生提供专业的AI智能体以辅助教学",
+      "image": "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=300&h=200&fit=crop",
+      "type": "chat",
+      "url": "#contact",
+      "tags": ["智能体", "定制开发", "教学辅助"]
+    }
+  ],
+  "prompts": [
+    {
+      "id": "1",
+      "title": "文章写作提示词",
+      "description": "帮助创作引人入胜的文章内容",
+      "content": "你是一位专业的内容创作者，请帮我写一篇关于[主题]的文章，要求：1. 标题吸引人 2. 结构清晰 3. 内容有价值 4. 语言生动",
+      "tags": ["写作", "内容创作"],
+      "downloads": 1250
+    },
+    {
+      "id": "2",
+      "title": "产品经理思维模板",
+      "description": "从产品经理角度分析问题的思维框架",
+      "content": "作为产品经理，分析[产品/功能]时需要考虑：1. 用户需求和痛点 2. 市场竞争分析 3. 技术可行性 4. 商业价值 5. 实施优先级",
+      "tags": ["产品管理", "分析"],
+      "downloads": 890
+    },
+    {
+      "id": "3",
+      "title": "代码审查助手",
+      "description": "高效进行代码审查的提示词模板",
+      "content": "请对以下代码进行审查，重点关注：1. 代码质量和可读性 2. 性能优化建议 3. 潜在bug 4. 最佳实践 5. 安全性问题",
+      "tags": ["编程", "代码审查"],
+      "downloads": 670
+    },
+    {
+      "id": "4",
+      "title": "学习计划制定器",
+      "description": "制定个性化学习计划的提示词",
+      "content": "帮我制定[技能/知识]的学习计划：1. 学习目标设定 2. 时间安排 3. 学习资源推荐 4. 进度检查点 5. 实践项目建议",
+      "tags": ["学习", "计划"],
+      "downloads": 1120
+    }
+  ],
+     "teachingResources": [
+     {
+       "id": "1",
+       "title": "AI基础课程教学课件",
+       "description": "适用于教师的AI入门课程完整教学资源包",
+       "type": "课件",
+       "difficulty": "教师用",
+       "size": "25.6 MB",
+       "downloadUrl": "/downloads/ai-basic-course.zip",
+       "downloads": 1240
+     },
+     {
+       "id": "2",
+       "title": "智能体开发实训指导",
+       "description": "学生实践AI智能体开发的完整指导材料",
+       "type": "实训",
+       "difficulty": "教师用",
+       "size": "18.3 MB",
+       "downloadUrl": "/downloads/agent-dev-guide.zip",
+       "downloads": 890
+     },
+     {
+       "id": "3",
+       "title": "提示词工程教学案例",
+       "description": "提示词工程课程的教学案例与练习题库",
+       "type": "案例",
+       "difficulty": "教师用",
+       "size": "12.7 MB",
+       "downloadUrl": "/downloads/prompt-engineering-cases.pdf",
+       "downloads": 1560
+     },
+     {
+       "id": "4",
+       "title": "AI教育评估工具包",
+       "description": "AI课程学习效果评估的工具和量表",
+       "type": "工具",
+       "difficulty": "教师用",
+       "size": "8.4 MB",
+       "downloadUrl": "/downloads/ai-assessment-toolkit.zip",
+       "downloads": 670
+     }
+   ]
+} 

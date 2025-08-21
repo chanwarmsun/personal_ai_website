@@ -1,0 +1,573 @@
+'use client'
+
+import { motion } from 'framer-motion'
+import { Bot, ExternalLink, Download, Play, Filter, Grid, List, Search, X, Sparkles } from 'lucide-react'
+import Image from 'next/image'
+import { useState, useEffect } from 'react'
+import CustomRequestModal from './CustomRequestModal'
+import { analytics } from '../lib/analytics'
+import { dataService } from '../lib/optimized-data-service'
+
+export default function AgentsSection() {
+  const [defaultAgents, setDefaultAgents] = useState<any[]>([])
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+  const [selectedCategory, setSelectedCategory] = useState<string>('全部')
+  const [searchQuery, setSearchQuery] = useState<string>('')
+  const [sortBy, setSortBy] = useState<'name' | 'downloads' | 'latest'>('latest')
+  const [showRequestModal, setShowRequestModal] = useState(false)
+  const [mounted, setMounted] = useState(false)
+  const [customAgents, setCustomAgents] = useState<any[]>([])
+  
+  // 分页状态 - 不影响现有功能
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage] = useState(6) // 每页显示6个智能体
+  const [showAllMode, setShowAllMode] = useState(false) // 是否显示全部模式
+  
+  // 处理客户端挂载
+  useEffect(() => {
+    setMounted(true)
+    loadAllAgents()
+  }, [])
+
+  // 使用优化的数据服务加载智能体数据
+  const loadAllAgents = async () => {
+    try {
+      console.log('🔄 从缓存或数据库加载智能体数据...')
+      const agents = await dataService.getAgents()
+      
+      // 分离默认智能体和自定义智能体（如果需要单独显示）
+      // 这里简化为直接使用所有智能体
+      setDefaultAgents(agents)
+      setCustomAgents([]) // 清空，因为已经合并到defaultAgents中
+      
+      console.log('✅ 智能体数据加载完成，数量:', agents.length)
+    } catch (error) {
+      console.error('❌ 智能体数据加载失败:', error)
+      setDefaultAgents([])
+      setCustomAgents([])
+    }
+  }
+  
+  // 合并默认智能体和自定义智能体
+  const agents = mounted ? [...defaultAgents, ...customAgents] : defaultAgents
+  
+  // 智能分类系统 - 基于功能而非技术标签
+  const categories = [
+    { id: '全部', name: '全部智能体', icon: '🤖', count: agents.length },
+    { id: '工作效率', name: '工作效率', icon: '💼', keywords: ['写作', '编程', '分析', '办公'] },
+    { id: '学习教育', name: '学习教育', icon: '📚', keywords: ['教学', '学习', '课程', '知识'] },
+    { id: '创意设计', name: '创意设计', icon: '🎨', keywords: ['设计', '创意', '灵感', '美术'] },
+    { id: '数据处理', name: '数据处理', icon: '📊', keywords: ['数据', '分析', '统计', '可视化'] },
+    { id: '生活助手', name: '生活助手', icon: '🏠', keywords: ['生活', '健康', '娱乐', '助手'] }
+  ]
+  
+  // 智能筛选和搜索
+  const getFilteredAgents = () => {
+    let filtered = agents
+    
+    // 按分类筛选
+    if (selectedCategory !== '全部') {
+      const category = categories.find(cat => cat.id === selectedCategory)
+      if (category && category.keywords) {
+        filtered = filtered.filter(agent => 
+          agent.tags.some((tag: string) => 
+            category.keywords!.some(keyword => 
+              tag.includes(keyword) || agent.name.includes(keyword) || agent.description.includes(keyword)
+            )
+          )
+        )
+      }
+    }
+    
+    // 按搜索关键词筛选
+    if (searchQuery.trim()) {
+      filtered = filtered.filter(agent => 
+        agent.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        agent.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        agent.tags.some((tag: string) => tag.toLowerCase().includes(searchQuery.toLowerCase()))
+      )
+    }
+    
+    // 排序
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'name':
+          return a.name.localeCompare(b.name)
+        case 'downloads':
+          return parseInt(b.id) - parseInt(a.id) // 模拟下载量排序
+        case 'latest':
+        default:
+          return parseInt(b.id) - parseInt(a.id)
+      }
+    })
+    
+    return filtered
+  }
+  
+  const filteredAgents = getFilteredAgents()
+  
+  // 分页逻辑 - 不修改原有筛选功能
+  const totalPages = Math.ceil(filteredAgents.length / itemsPerPage)
+  const currentAgents = showAllMode 
+    ? filteredAgents // 显示全部模式：显示所有筛选结果
+    : filteredAgents.slice(0, currentPage * itemsPerPage) // 分页模式：显示前N页的内容
+  
+  // 重置分页当筛选条件改变时
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [selectedCategory, searchQuery, sortBy])
+  
+  // 更新分类计数
+  const getCategoryCount = (categoryId: string) => {
+    if (categoryId === '全部') return agents.length
+    const category = categories.find(cat => cat.id === categoryId)
+    if (!category || !category.keywords) return 0
+    return agents.filter(agent => 
+      agent.tags.some((tag: string) => 
+        category.keywords!.some(keyword => 
+          tag.includes(keyword) || agent.name.includes(keyword) || agent.description.includes(keyword)
+        )
+      )
+    ).length
+  }
+
+  // 处理搜索
+  const handleSearch = (query: string) => {
+    setSearchQuery(query)
+    // 记录搜索关键词统计
+    if (query.trim()) {
+      analytics.trackSearch(query.trim())
+    }
+  }
+
+  const handleAgentClick = (agent: any) => {
+    // 记录智能体点击统计
+    analytics.trackAgentClick(agent.name, agent.type || 'link')
+    
+    if (agent.type === 'download') {
+      // 创建下载链接
+      const link = document.createElement('a')
+      link.href = agent.url
+      link.download = `${agent.name}.zip`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    } else {
+      // 打开外部链接
+      window.open(agent.url, '_blank')
+    }
+  }
+
+  const getActionIcon = (type: string) => {
+    switch (type) {
+      case 'download':
+        return <Download size={18} />
+      case 'chat':
+        return <Play size={18} />
+      default:
+        return <ExternalLink size={18} />
+    }
+  }
+
+  const getActionText = (type: string) => {
+    switch (type) {
+      case 'download':
+        return '下载使用'
+      case 'chat':
+        return '开始对话'
+      default:
+        return '打开使用'
+    }
+  }
+
+  return (
+    <section id="agents" className="py-16 bg-white/50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          viewport={{ once: true }}
+          className="text-center mb-12"
+        >
+          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+            我的AI智能体
+          </h2>
+          <p className="text-lg text-gray-600 max-w-2xl mx-auto mb-8">
+            精心开发的AI智能体，助力您的工作和学习效率
+          </p>
+          
+          {/* 智能搜索和筛选系统 */}
+          <div className="space-y-6 max-w-5xl mx-auto">
+            {/* 搜索栏 */}
+            <div className="relative max-w-md mx-auto">
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="relative"
+              >
+                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                <input
+                  type="text"
+                  placeholder="搜索智能体名称、功能..."
+                  value={searchQuery}
+                  onChange={(e) => handleSearch(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 bg-white rounded-2xl border border-gray-200 focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 transition-all duration-300 text-gray-700 placeholder-gray-400"
+                />
+                {searchQuery && (
+                  <motion.button
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <X size={16} />
+                  </motion.button>
+                )}
+              </motion.div>
+            </div>
+
+            {/* 功能分类按钮 - 居中显示 */}
+            <div className="flex flex-nowrap gap-3 justify-center overflow-x-auto scrollbar-hide py-2">
+              {categories.map((category) => (
+                <motion.button
+                  key={category.id}
+                  whileHover={{ scale: 1.02, y: -1 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setSelectedCategory(category.id)}
+                  className={`relative inline-flex items-center gap-2 px-3 py-2 rounded-2xl text-xs font-medium transition-all duration-300 max-w-[140px] min-w-0 w-auto whitespace-nowrap overflow-hidden text-ellipsis ${
+                    selectedCategory === category.id
+                      ? 'bg-gradient-to-r from-indigo-500 to-violet-500 text-white shadow-lg shadow-indigo-200'
+                      : 'bg-white border border-gray-200 text-gray-700 hover:bg-indigo-50 hover:border-indigo-200 hover:shadow-md'
+                  }`}
+                >
+                  <span className="text-base">{category.icon}</span>
+                  <span className="whitespace-nowrap overflow-hidden text-ellipsis">{category.name}</span>
+                  <span className={`ml-1 px-2 py-0.5 rounded-full text-xs ${
+                    selectedCategory === category.id
+                      ? 'bg-white/20 text-white'
+                      : 'bg-gray-100 text-gray-500'
+                  }`}>
+                    {getCategoryCount(category.id)}
+                  </span>
+                </motion.button>
+              ))}
+            </div>
+            
+            {/* 排序和视图控制 - 单独一行 */}
+            <div className="flex items-center justify-center gap-4">
+              {/* 排序选择 */}
+              <div className="flex items-center gap-2 bg-white rounded-xl h-12 px-4 shadow-md border border-gray-200">
+                <Filter size={16} className="text-gray-500" />
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as 'name' | 'downloads' | 'latest')}
+                  className="text-sm text-gray-700 bg-transparent border-none outline-none cursor-pointer"
+                  style={{ height: '2rem' }}
+                >
+                  <option value="latest">最新发布</option>
+                  <option value="downloads">使用热度</option>
+                  <option value="name">名称排序</option>
+                </select>
+              </div>
+              
+              {/* 视图切换 */}
+              <div className="flex items-center gap-1 bg-white rounded-xl h-12 p-1 shadow-md border border-gray-200">
+                <motion.button
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => setViewMode('grid')}
+                  className={`h-10 w-10 flex items-center justify-center rounded-lg transition-all duration-200 ${
+                    viewMode === 'grid' 
+                      ? 'bg-indigo-500 text-white shadow-md' 
+                      : 'text-gray-500 hover:text-indigo-500'
+                  }`}
+                >
+                  <Grid size={16} />
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => setViewMode('list')}
+                  className={`h-10 w-10 flex items-center justify-center rounded-lg transition-all duration-200 ${
+                    viewMode === 'list' 
+                      ? 'bg-indigo-500 text-white shadow-md' 
+                      : 'text-gray-500 hover:text-indigo-500'
+                  }`}
+                >
+                  <List size={16} />
+                </motion.button>
+              </div>
+            </div>
+            
+            {/* 搜索结果提示 */}
+            {(searchQuery || selectedCategory !== '全部') && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-center"
+              >
+                <p className="text-sm text-gray-600">
+                  {searchQuery ? (
+                    <>找到 <span className="font-semibold text-indigo-600">{filteredAgents.length}</span> 个包含 "<span className="font-medium">{searchQuery}</span>" 的智能体</>
+                  ) : (
+                    <>
+                      <span className="font-medium">{categories.find(c => c.id === selectedCategory)?.name}</span> 
+                      类别共有 <span className="font-semibold text-indigo-600">{filteredAgents.length}</span> 个智能体
+                    </>
+                  )}
+                </p>
+              </motion.div>
+            )}
+          </div>
+        </motion.div>
+
+        {filteredAgents.length === 0 ? (
+          // 无结果状态
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center py-16"
+          >
+            <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center">
+              <Bot size={32} className="text-gray-400" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-700 mb-2">暂无匹配的智能体</h3>
+            <p className="text-gray-500 mb-6 max-w-md mx-auto">
+              {searchQuery ? 
+                `没有找到包含"${searchQuery}"的智能体，请尝试其他关键词` :
+                `该分类下暂无智能体，更多智能体正在开发中`
+              }
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              {searchQuery && (
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setSearchQuery('')}
+                  className="btn-bounce px-6 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-xl font-medium shadow-lg hover:shadow-xl"
+                >
+                  清除搜索
+                </motion.button>
+              )}
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  setSelectedCategory('全部')
+                  setSearchQuery('')
+                }}
+                className="btn-bounce px-6 py-3 border-2 border-indigo-600 text-indigo-600 rounded-xl font-medium hover:bg-indigo-600 hover:text-white transition-all duration-300"
+              >
+                查看全部智能体
+              </motion.button>
+            </div>
+          </motion.div>
+        ) : (
+          <div className={`${
+            viewMode === 'grid' 
+              ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6' 
+              : 'space-y-4'
+          }`}>
+            {currentAgents.map((agent, index) => (
+            <motion.div
+              key={agent.id}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: index * 0.1 }}
+              viewport={{ once: true }}
+              className={`card-interactive group cursor-pointer ${
+                viewMode === 'grid' ? 'bento-card' : 'bento-card flex gap-6 items-center'
+              }`}
+              onClick={() => handleAgentClick(agent)}
+            >
+              {viewMode === 'grid' ? (
+                // 网格视图
+                <>
+                  <div className="relative overflow-hidden rounded-xl mb-4">
+                    <Image
+                      src={agent.image}
+                      alt={agent.name}
+                      width={400}
+                      height={200}
+                      className="w-full h-48 object-cover transition-transform duration-300 group-hover:scale-105"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      whileHover={{ scale: 1 }}
+                      className="absolute inset-0 flex items-center justify-center"
+                    >
+                      <div className="w-16 h-16 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center">
+                        <Bot size={24} className="text-indigo-600" />
+                      </div>
+                    </motion.div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-indigo-600 transition-colors">
+                        {agent.name}
+                      </h3>
+                      <p className="text-gray-600 line-clamp-2">
+                        {agent.description}
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                      {agent.tags.map((tag: string) => (
+                        <span
+                          key={tag}
+                          className="px-3 py-1 bg-indigo-50 text-indigo-600 text-sm rounded-full"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="btn-bounce w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-all duration-300"
+                    >
+                      {getActionIcon(agent.type)}
+                      {getActionText(agent.type)}
+                    </motion.button>
+                  </div>
+                </>
+              ) : (
+                // 列表视图
+                <>
+                  <div className="relative overflow-hidden rounded-xl w-32 h-20 flex-shrink-0">
+                    <Image
+                      src={agent.image}
+                      alt={agent.name}
+                      width={128}
+                      height={80}
+                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    />
+                  </div>
+                  
+                  <div className="flex-1 space-y-2">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h3 className="text-lg font-bold text-gray-900 group-hover:text-indigo-600 transition-colors">
+                          {agent.name}
+                        </h3>
+                        <p className="text-gray-600 text-sm line-clamp-1">
+                          {agent.description}
+                        </p>
+                      </div>
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        className="btn-bounce flex items-center gap-1 px-4 py-2 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-lg text-sm font-medium shadow-lg hover:shadow-xl"
+                      >
+                        {getActionIcon(agent.type)}
+                        {getActionText(agent.type)}
+                      </motion.button>
+                    </div>
+                    
+                    <div className="flex flex-wrap gap-1">
+                      {agent.tags.map((tag: string) => (
+                        <span
+                          key={tag}
+                          className="px-2 py-1 bg-indigo-50 text-indigo-600 text-xs rounded-full"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+            </motion.div>
+          ))}
+          </div>
+        )}
+
+        {/* 分页控制 - 只在有多页内容时显示 */}
+        {filteredAgents.length > itemsPerPage && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.3 }}
+            viewport={{ once: true }}
+            className="flex flex-col items-center gap-4 mt-8"
+          >
+            {!showAllMode && currentAgents.length < filteredAgents.length && (
+              <div className="flex flex-col sm:flex-row items-center gap-3">
+                <p className="text-sm text-gray-600">
+                  显示 <span className="font-semibold text-indigo-600">{currentAgents.length}</span> / 
+                  <span className="font-semibold">{filteredAgents.length}</span> 个智能体
+                </p>
+                <div className="flex gap-2">
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setCurrentPage(prev => prev + 1)}
+                    className="btn-bounce px-4 py-2 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-lg font-medium shadow-lg hover:shadow-xl transition-all duration-300"
+                  >
+                    加载更多 ({filteredAgents.length - currentAgents.length})
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setShowAllMode(true)}
+                    className="btn-bounce px-4 py-2 border-2 border-indigo-600 text-indigo-600 rounded-lg font-medium hover:bg-indigo-600 hover:text-white transition-all duration-300"
+                  >
+                    显示全部
+                  </motion.button>
+                </div>
+              </div>
+            )}
+            
+            {showAllMode && (
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  setShowAllMode(false)
+                  setCurrentPage(1)
+                }}
+                className="btn-bounce px-4 py-2 border-2 border-gray-400 text-gray-600 rounded-lg font-medium hover:bg-gray-100 transition-all duration-300"
+              >
+                收起显示
+              </motion.button>
+            )}
+          </motion.div>
+        )}
+
+        {/* 更多智能体提示 */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.4 }}
+          viewport={{ once: true }}
+          className="text-center mt-12"
+        >
+          <p className="text-gray-500 mb-4">更多智能体正在路上...</p>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setShowRequestModal(true)}
+            className="btn-bounce inline-flex items-center px-6 py-3 border-2 border-indigo-600 text-indigo-600 rounded-xl font-medium hover:bg-indigo-600 hover:text-white transition-all duration-300"
+          >
+            <Sparkles size={20} className="mr-2" />
+            定制智能体
+          </motion.button>
+        </motion.div>
+      </div>
+      
+      {/* 定制申请模态框 */}
+      <CustomRequestModal
+        isOpen={showRequestModal}
+        onClose={() => setShowRequestModal(false)}
+        type="agent"
+      />
+    </section>
+  )
+} 
