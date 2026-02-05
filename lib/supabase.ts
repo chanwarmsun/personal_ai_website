@@ -316,6 +316,21 @@ export interface CarouselItem {
   created_at?: string
 }
 
+export interface Skill {
+  id: string
+  name: string
+  description: string
+  content: string
+  image: string
+  category: '效率工具' | '学习辅助' | '数据处理' | '创意设计' | '生活助手' | '内容创作'
+  version: string
+  difficulty: '入门' | '初级' | '中级' | '高级'
+  tags: string[]
+  downloads: number
+  file_url: string
+  created_at?: string
+}
+
 export interface DefaultContent {
   id: string
   content_type: 'agents' | 'prompts' | 'teaching_resources' | 'carousel'

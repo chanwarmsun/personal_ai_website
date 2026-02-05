@@ -86,6 +86,11 @@ export const defaultContentProvider = {
     return content.teachingResources || []
   },
 
+  async getSkills() {
+    const content = await this.getDefaultContent()
+    return content.skills || []
+  },
+
   async getCarousel() {
     const content = await this.getDefaultContent()
     return content.carousel || []

@@ -7,6 +7,7 @@ import CarouselSection from '../components/CarouselSection'
 import AgentsSection from '../components/AgentsSection'
 import PromptsSection from '../components/PromptsSection'
 import ResourcesSection from '../components/ResourcesSection'
+import SkillsSection from '../components/SkillsSection'
 import Footer from '../components/Footer'
 import { analytics } from '../lib/analytics'
 
@@ -24,6 +25,7 @@ export default function Home() {
       <AgentsSection />
       <PromptsSection />
       <ResourcesSection />
+      <SkillsSection />
       <Footer />
     </main>
   )

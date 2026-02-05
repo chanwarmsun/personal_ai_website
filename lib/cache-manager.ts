@@ -243,18 +243,19 @@ export const cacheManager = CacheManager.getInstance()
 export const CACHE_KEYS = {
   // 数据缓存
   AGENTS: 'agents_list',
-  PROMPTS: 'prompts_list', 
+  PROMPTS: 'prompts_list',
   RESOURCES: 'resources_list',
+  SKILLS: 'skills_list',
   CAROUSEL: 'carousel_list',
   DEFAULT_CONTENT: 'default_content',
   REQUESTS: 'custom_requests',
-  
+
   // 统计缓存
   STATS: 'admin_stats',
-  
+
   // 连接状态缓存
   DB_CONNECTION: 'db_connection_status',
-  
+
   // 用户数据缓存
   USER_PREFERENCES: 'user_preferences'
 } as const

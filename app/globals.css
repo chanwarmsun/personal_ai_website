@@ -129,12 +129,172 @@
   .animation-delay-200 {
     animation-delay: 200ms;
   }
-  
+
   .animation-delay-400 {
     animation-delay: 400ms;
   }
-  
+
   .animation-delay-600 {
     animation-delay: 600ms;
   }
-} 
+}
+
+/* 管理后台专用样式 - 浅色主题 */
+@layer components {
+  /* 表单输入框 */
+  .admin-input {
+    @apply w-full px-4 py-3 bg-white border border-gray-200 rounded-lg;
+    @apply text-gray-700 placeholder:text-gray-400;
+    @apply focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100;
+    @apply transition-all duration-200;
+  }
+
+  /* 按钮样式 */
+  .admin-btn-primary {
+    @apply px-6 py-3 bg-gradient-to-r from-indigo-500 to-violet-500 text-white rounded-lg;
+    @apply font-medium text-sm;
+    @apply hover:shadow-lg hover:scale-[1.02];
+    @apply active:scale-[0.98];
+    @apply transition-all duration-200;
+  }
+
+  .admin-btn-secondary {
+    @apply px-6 py-3 bg-white border border-gray-200 text-gray-600 rounded-lg;
+    @apply font-medium text-sm;
+    @apply hover:bg-gray-50 hover:text-gray-800 hover:border-gray-300;
+    @apply transition-all duration-200;
+  }
+
+  .admin-btn-danger {
+    @apply px-4 py-2 bg-red-50 border border-red-200 text-red-600 rounded-lg;
+    @apply text-sm hover:bg-red-100 hover:border-red-300;
+    @apply transition-all duration-200;
+  }
+
+  /* 标签样式 */
+  .admin-tag {
+    @apply inline-flex items-center px-3 py-1 rounded-full;
+    @apply text-xs font-medium;
+    @apply bg-gray-100 text-gray-600;
+  }
+
+  /* 卡片样式 */
+  .admin-card {
+    @apply bg-white border border-gray-100 rounded-xl;
+    @apply shadow-sm;
+    @apply transition-all duration-300;
+  }
+
+  .admin-card-hoverable {
+    @apply hover:shadow-md hover:border-gray-200;
+  }
+
+  /* 列表项样式 */
+  .admin-list-item {
+    @apply flex items-center gap-4 p-4 border-b border-gray-100;
+    @apply hover:bg-gray-50 transition-colors duration-200;
+  }
+
+  /* 选择框样式 */
+  .admin-select {
+    @apply w-full px-4 py-3 bg-white border border-gray-200 rounded-lg;
+    @apply text-gray-700;
+    @apply focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100;
+    @apply cursor-pointer;
+    @apply transition-all duration-200;
+  }
+
+  /* 文本域样式 */
+  .admin-textarea {
+    @apply w-full px-4 py-3 bg-white border border-gray-200 rounded-lg;
+    @apply text-gray-700 placeholder:text-gray-400;
+    @apply focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100;
+    @apply transition-all duration-200;
+    @apply resize-none;
+  }
+
+  /* 加载状态 */
+  .admin-loading {
+    @apply flex items-center justify-center py-12;
+    @apply text-gray-400 text-sm;
+  }
+
+  /* 空状态 */
+  .admin-empty {
+    @apply flex flex-col items-center justify-center py-16;
+    @apply text-gray-300;
+  }
+
+  /* 分割线 */
+  .admin-divider {
+    @apply h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent;
+    @apply my-6;
+  }
+
+  /* 状态指示器 */
+  .admin-status {
+    @apply inline-flex items-center gap-2 px-3 py-1.5 rounded-full;
+    @apply text-xs font-medium;
+    @apply bg-gray-100 text-gray-600;
+  }
+
+  .admin-status-success {
+    @apply bg-green-100 text-green-700;
+  }
+
+  .admin-status-warning {
+    @apply bg-amber-100 text-amber-700;
+  }
+
+  .admin-status-error {
+    @apply bg-red-100 text-red-700;
+  }
+
+  /* 滚动条样式优化 */
+  .admin-scroll::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .admin-scroll::-webkit-scrollbar-track {
+    @apply bg-gray-100;
+  }
+
+  .admin-scroll::-webkit-scrollbar-thumb {
+    @apply bg-gray-300 rounded-full;
+  }
+
+  .admin-scroll::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-400;
+  }
+
+  /* 动画效果 */
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes pulse-border {
+    0%, 100% {
+      border-color: rgba(99, 102, 241, 0.3);
+      box-shadow: 0 0 20px rgba(99, 102, 241, 0.1);
+    }
+    50% {
+      border-color: rgba(99, 102, 241, 0.6);
+      box-shadow: 0 0 30px rgba(99, 102, 241, 0.2);
+    }
+  }
+
+  .animate-fade-in {
+    animation: fadeInUp 0.3s ease-out;
+  }
+
+  .animate-pulse-border {
+    animation: pulse-border 2s ease-in-out infinite;
+  }
+}

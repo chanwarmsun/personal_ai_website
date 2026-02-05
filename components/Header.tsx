@@ -14,6 +14,7 @@ export default function Header() {
     { name: '智能体', href: '#agents' },
     { name: '提示词', href: '#prompts' },
     { name: 'AI教学资源', href: '#resources' },
+    { name: '技能库', href: '#skills' },
     { name: '关于', href: '#about' }
   ]
 

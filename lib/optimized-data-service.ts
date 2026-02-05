@@ -117,6 +117,19 @@ class OptimizedDataService {
     )
   }
 
+  // 获取技能数据（缓存优化）
+  async getSkills(forceRefresh: boolean = false): Promise<any[]> {
+    if (forceRefresh) {
+      cacheManager.delete(CACHE_KEYS.SKILLS)
+    }
+
+    return cacheManager.getOrSet(
+      CACHE_KEYS.SKILLS,
+      () => this.loadSkillsData(),
+      CACHE_TTL.MEDIUM
+    )
+  }
+
   // 获取轮播数据（缓存优化）
   async getCarousel(forceRefresh: boolean = false): Promise<any[]> {
     if (forceRefresh) {
@@ -338,10 +351,10 @@ class OptimizedDataService {
 
   private async loadCarouselData(): Promise<any[]> {
     this.setLoadingState(CACHE_KEYS.CAROUSEL, { isLoading: true, error: null })
-    
+
     try {
       console.log('📥 正在加载轮播数据...')
-      
+
       const carousel = await carouselOperations.getAll().catch(error => {
         console.warn('加载轮播数据失败:', error)
         if (typeof window !== 'undefined') {
@@ -349,21 +362,57 @@ class OptimizedDataService {
         }
         return []
       })
-      
-      this.setLoadingState(CACHE_KEYS.CAROUSEL, { 
-        isLoading: false, 
-        error: null, 
-        lastUpdated: new Date() 
+
+      this.setLoadingState(CACHE_KEYS.CAROUSEL, {
+        isLoading: false,
+        error: null,
+        lastUpdated: new Date()
       })
-      
+
       console.log(`✅ 轮播数据加载完成，数量: ${carousel.length}`)
       return carousel
     } catch (error: any) {
-      this.setLoadingState(CACHE_KEYS.CAROUSEL, { 
-        isLoading: false, 
-        error: error.message 
+      this.setLoadingState(CACHE_KEYS.CAROUSEL, {
+        isLoading: false,
+        error: error.message
       })
       console.error('❌ 轮播数据加载失败:', error)
+      throw error
+    }
+  }
+
+  private async loadSkillsData(): Promise<any[]> {
+    this.setLoadingState(CACHE_KEYS.SKILLS, { isLoading: true, error: null })
+
+    try {
+      console.log('📥 正在加载技能数据...')
+
+      // 从默认内容提供者和数据库加载技能
+      const [defaultSkills, customSkills] = await Promise.all([
+        defaultContentProvider.getSkills().catch(error => {
+          console.warn('加载默认技能失败:', error)
+          return []
+        }),
+        // 如果有 skillOperations，从数据库加载
+        Promise.resolve([]).catch(() => [])
+      ])
+
+      const skills = [...defaultSkills, ...customSkills]
+
+      this.setLoadingState(CACHE_KEYS.SKILLS, {
+        isLoading: false,
+        error: null,
+        lastUpdated: new Date()
+      })
+
+      console.log(`✅ 技能数据加载完成，数量: ${skills.length}`)
+      return skills
+    } catch (error: any) {
+      this.setLoadingState(CACHE_KEYS.SKILLS, {
+        isLoading: false,
+        error: error.message
+      })
+      console.error('❌ 技能数据加载失败:', error)
       throw error
     }
   }

@@ -1,5 +1,5 @@
 import { supabase, withRetry, DatabaseConnectionManager, smartConnection, keepAlive } from './supabase'
-import type { Agent, Prompt, TeachingResource, CustomRequest } from './supabase'
+import type { Agent, Prompt, TeachingResource, CustomRequest, Skill } from './supabase'
 import { dbLogger } from './logger'
 
 // 连接管理器实例
@@ -334,11 +334,89 @@ class RequestOperations extends BaseOperations<CustomRequest> {
   }
 }
 
+// 技能库操作类
+class SkillOperations extends BaseOperations<Skill> {
+  constructor() {
+    super('skills')
+  }
+
+  // 技能专用创建方法，包含字段验证
+  async create(skill: Omit<Skill, 'id' | 'created_at'>): Promise<Skill | null> {
+    // 验证必填字段
+    if (!skill.name?.trim()) {
+      throw new Error('技能名称不能为空')
+    }
+    if (!skill.description?.trim()) {
+      throw new Error('技能描述不能为空')
+    }
+    if (!skill.content?.trim()) {
+      throw new Error('技能内容不能为空')
+    }
+    if (!skill.category) {
+      throw new Error('技能分类不能为空')
+    }
+    if (!skill.version?.trim()) {
+      throw new Error('技能版本不能为空')
+    }
+    if (!skill.difficulty) {
+      throw new Error('技能难度不能为空')
+    }
+
+    // 验证分类和难度值
+    const validCategories = ['效率工具', '学习辅助', '数据处理', '创意设计', '生活助手', '内容创作']
+    const validDifficulties = ['入门', '初级', '中级', '高级']
+
+    if (!validCategories.includes(skill.category)) {
+      throw new Error(`无效的技能分类: ${skill.category}`)
+    }
+    if (!validDifficulties.includes(skill.difficulty)) {
+      throw new Error(`无效的技能难度: ${skill.difficulty}`)
+    }
+
+    // 确保字段格式正确
+    const formattedSkill = {
+      name: skill.name.trim(),
+      description: skill.description.trim(),
+      content: skill.content.trim(),
+      image: skill.image || '',
+      category: skill.category,
+      version: skill.version.trim(),
+      difficulty: skill.difficulty,
+      tags: Array.isArray(skill.tags) ? skill.tags : [],
+      downloads: skill.downloads || 0,
+      file_url: skill.file_url || ''
+    }
+
+    return super.create(formattedSkill)
+  }
+
+  // 更新下载次数
+  async incrementDownloads(id: string): Promise<Skill | null> {
+    try {
+      const { data: current } = await supabase
+        .from(this.tableName)
+        .select('downloads')
+        .eq('id', id)
+        .single()
+
+      if (current) {
+        return this.update(id, {
+          downloads: (current.downloads || 0) + 1
+        })
+      }
+      return null
+    } catch (error: any) {
+      throw new Error(`更新下载次数失败: ${error.message}`)
+    }
+  }
+}
+
 // 导出操作实例
 export const agentOperations = new AgentOperations()
 export const promptOperations = new PromptOperations()
 export const resourceOperations = new ResourceOperations()
 export const requestOperations = new RequestOperations()
+export const skillOperations = new SkillOperations()
 
 // 批量操作工具
 export const batchOperations = {
