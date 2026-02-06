@@ -13,12 +13,18 @@ export default function CarouselSection() {
   const [currentTranslate, setCurrentTranslate] = useState(0)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const animationRef = useRef<number>()
-  
+  const carouselLengthRef = useRef(0)
+
   // 处理客户端挂载
   useEffect(() => {
     setMounted(true)
     loadCarouselFromAdmin()
   }, [])
+
+  // 更新 carouselLengthRef
+  useEffect(() => {
+    carouselLengthRef.current = carousel.length
+  }, [carousel.length])
 
   // 使用优化的数据服务加载轮播数据
   const loadCarouselFromAdmin = async () => {
@@ -49,33 +55,36 @@ export default function CarouselSection() {
       }
       return
     }
-    
+
+    const itemWidth = 320 // 每个卡片的宽度
+    const scrollSpeed = 0.5 // 滚动速度（像素/帧）
+    const carouselLength = carouselLengthRef.current
+
     const animate = () => {
+      const resetPoint = -(itemWidth * carouselLength)
+
       setCurrentTranslate(prev => {
-        const itemWidth = 320 // 每个卡片的宽度
-        const scrollSpeed = 0.5 // 滚动速度（像素/帧）
         const newTranslate = prev - scrollSpeed
-        
+
         // 如果滚动到第二组的末尾，重置到第一组的开始
-        const resetPoint = -(itemWidth * originalCarousel.length)
         if (newTranslate <= resetPoint) {
           return 0
         }
-        
+
         return newTranslate
       })
-      
+
       animationRef.current = requestAnimationFrame(animate)
     }
-    
+
     animationRef.current = requestAnimationFrame(animate)
-    
+
     return () => {
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current)
       }
     }
-  }, [isAutoPlaying, displayCarousel.length, originalCarousel.length])
+  }, [isAutoPlaying, displayCarousel.length])
 
   const scrollLeft = () => {
     setCurrentTranslate(prev => {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, Fragment } from 'react'
+import { useState, useEffect, useMemo, Fragment } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Search, X, FileText, Bot, Code, Hash } from 'lucide-react'
 import Fuse from 'fuse.js'
@@ -50,12 +50,12 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
     }))
   ]
 
-  // 配置Fuse.js
-  const fuse = new Fuse(searchData, {
+  // 配置Fuse.js - 使用 useMemo 避免无限循环
+  const fuse = useMemo(() => new Fuse(searchData, {
     keys: ['title', 'description', 'tags'],
     threshold: 0.3,
     includeScore: true
-  })
+  }), [searchData])
 
   useEffect(() => {
     if (query.trim()) {
