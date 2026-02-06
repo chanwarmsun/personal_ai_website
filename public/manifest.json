@@ -1,24 +1,21 @@
 {
   "name": "陈老师AI进化论",
-  "short_name": "AI进化论",
-  "description": "专注于AI教育培训、RPA机器人流程自动化、智能体定制开发。为职业教育赋能，引领教育数字化转型新时代。",
+  "short_name": "陈老师AI",
+  "description": "AI教育与数字化转型专家",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#3b82f6",
-  "orientation": "portrait-primary",
   "icons": [
     {
       "src": "/icon-192.png",
       "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "type": "image/png"
     },
     {
       "src": "/icon-512.png",
       "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "type": "image/png"
     }
   ]
 }

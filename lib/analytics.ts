@@ -103,6 +103,17 @@ export class LightAnalytics {
     
     this.saveData(data);
   }
+
+  // 兼容旧调用：统一下载埋点入口
+  trackDownload(type: string, itemName: string) {
+    if (type === 'prompt') {
+      this.trackPromptDownload(itemName);
+      return;
+    }
+
+    // skill/resource 统一计入资源下载
+    this.trackResourceDownload(itemName);
+  }
   
   // 记录搜索关键词
   trackSearch(keyword: string) {
