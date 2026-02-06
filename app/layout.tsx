@@ -24,13 +24,10 @@ export default function RootLayout({
         
         {/* 缓存策略 */}
         <meta httpEquiv="Cache-Control" content="public, max-age=31536000, immutable" />
-        
+
         {/* Progressive Web App */}
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#3b82f6" />
-        
-        {/* 预加载关键资源 */}
-        <link rel="preload" href="/images/my-avatar.jpg" as="image" />
       </head>
       <body className={`${inter.className} bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 min-h-screen`}>
         {children}

@@ -216,11 +216,18 @@ class CacheManager {
   private saveToPersistentStorage<T>(key: string, item: CacheItem<T>): void {
     if (typeof window === 'undefined' || !this.config.enablePersist) return
 
+    // 对于大容量数据，跳过 localStorage 存储
+    const largeDataKeys = ['agents_list', 'prompts_list', 'resources_list', 'skills_list', 'carousel_list', 'default_content']
+    if (largeDataKeys.includes(key)) {
+      // 大容量数据只在内存中缓存，不存储到 localStorage
+      return
+    }
+
     try {
       const storageKey = `cache_${key}`
       localStorage.setItem(storageKey, JSON.stringify(item))
     } catch (error) {
-      console.warn(`保存缓存到本地存储失败: ${key}`, error)
+      // 静默处理，不显示警告
     }
   }
 
